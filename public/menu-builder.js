@@ -35,15 +35,37 @@ function addSection(data = {}) {
     moveButtons.appendChild(moveDownBtn);
     sectionDiv.appendChild(moveButtons);
 
+    // Create section header
     const header = document.createElement('div');
     header.className = 'section-header';
-
+    
+    // Create section name input
     const nameInput = document.createElement('input');
     nameInput.type = 'text';
     nameInput.className = 'section-name';
     nameInput.placeholder = 'Section Name';
     nameInput.value = data.name || '';
 
+    // Create active toggle container
+    const activeToggleContainer = document.createElement('div');
+    activeToggleContainer.className = 'active-toggle-container';
+    
+    const activeToggle = document.createElement('input');
+    activeToggle.type = 'checkbox';
+    activeToggle.className = 'active-toggle';
+    activeToggle.checked = data.active !== false && data.active !== 0;
+    
+    const activeLabel = document.createElement('label');
+    activeLabel.textContent = 'Active';
+    
+    activeToggleContainer.appendChild(activeToggle);
+    activeToggleContainer.appendChild(activeLabel);
+
+    // Create section controls container
+    const controlsContainer = document.createElement('div');
+    controlsContainer.className = 'section-controls';
+    
+    // Create toggle button
     const toggleBtn = document.createElement('button');
     toggleBtn.className = 'section-toggle-btn';
     toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
@@ -52,30 +74,30 @@ function addSection(data = {}) {
         e.stopPropagation();
         toggleSection(sectionId);
     });
-
-    const activeToggle = document.createElement('input');
-    activeToggle.type = 'checkbox';
-    activeToggle.className = 'active-toggle';
-    activeToggle.checked = data.active !== false && data.active !== 0;
-
-    const activeLabel = document.createElement('label');
-    activeLabel.textContent = 'Active';
-
+    
+    // Create add item button
     const addItemBtn = document.createElement('button');
-    addItemBtn.textContent = 'Add Item';
+    addItemBtn.className = 'btn btn-sm btn-primary';
+    addItemBtn.innerHTML = '<i class="fas fa-plus"></i> Add Item';
     addItemBtn.addEventListener('click', () => addItem(sectionId));
-
+    
+    // Create delete section button
     const deleteSectionBtn = document.createElement('button');
-    deleteSectionBtn.textContent = 'Delete Section';
+    deleteSectionBtn.className = 'btn btn-sm btn-secondary';
+    deleteSectionBtn.innerHTML = '<i class="fas fa-trash"></i> Delete';
     deleteSectionBtn.addEventListener('click', () => deleteSection(sectionId));
-
+    
+    // Add elements to header
     header.appendChild(nameInput);
-    header.appendChild(activeToggle);
-    header.appendChild(activeLabel);
-    header.appendChild(toggleBtn);
-    header.appendChild(addItemBtn);
-    header.appendChild(deleteSectionBtn);
-
+    header.appendChild(activeToggleContainer);
+    
+    controlsContainer.appendChild(toggleBtn);
+    controlsContainer.appendChild(addItemBtn);
+    controlsContainer.appendChild(deleteSectionBtn);
+    
+    header.appendChild(controlsContainer);
+    
+    // Create section content
     const sectionContent = document.createElement('div');
     sectionContent.className = 'section-content';
 
@@ -126,6 +148,15 @@ function toggleSection(sectionId) {
     }
 }
 
+// Allow clicking anywhere in section header to toggle collapse
+document.addEventListener('click', function(e) {
+    const sectionHeader = e.target.closest('.section-header');
+    if (sectionHeader && !e.target.closest('input, button')) {
+        const sectionId = sectionHeader.closest('.section-card').id;
+        toggleSection(sectionId);
+    }
+});
+
 // Add a new item to a section
 function addItem(sectionId, data = {}) {
     const itemId = `item-${itemCounter++}`;
@@ -151,24 +182,31 @@ function addItem(sectionId, data = {}) {
     moveButtons.appendChild(moveDownBtn);
     itemDiv.appendChild(moveButtons);
 
+    // Item name input
     const nameInput = document.createElement('input');
     nameInput.type = 'text';
     nameInput.className = 'item-name';
     nameInput.placeholder = 'Item Name';
     nameInput.value = data.name || '';
 
+    // Item description input
     const descInput = document.createElement('input');
     descInput.type = 'text';
     descInput.className = 'item-desc';
     descInput.placeholder = 'Description';
     descInput.value = data.description || '';
 
+    // Item price input
     const priceInput = document.createElement('input');
     priceInput.type = 'text';
     priceInput.className = 'item-price';
     priceInput.placeholder = 'Price';
     priceInput.value = data.price || '';
 
+    // Active toggle in a container
+    const activeToggleContainer = document.createElement('div');
+    activeToggleContainer.className = 'active-toggle-container';
+    
     const activeToggle = document.createElement('input');
     activeToggle.type = 'checkbox';
     activeToggle.className = 'active-toggle';
@@ -176,18 +214,25 @@ function addItem(sectionId, data = {}) {
 
     const activeLabel = document.createElement('label');
     activeLabel.textContent = 'Active';
+    
+    activeToggleContainer.appendChild(activeToggle);
+    activeToggleContainer.appendChild(activeLabel);
 
+    // Delete item button with icon
     const deleteItemBtn = document.createElement('button');
-    deleteItemBtn.textContent = 'Delete Item';
+    deleteItemBtn.className = 'btn btn-sm btn-secondary';
+    deleteItemBtn.innerHTML = '<i class="fas fa-trash"></i>';
+    deleteItemBtn.title = 'Delete Item';
     deleteItemBtn.addEventListener('click', () => deleteItem(itemId));
 
+    // Add all elements to item div
     itemDiv.appendChild(nameInput);
     itemDiv.appendChild(descInput);
     itemDiv.appendChild(priceInput);
-    itemDiv.appendChild(activeToggle);
-    itemDiv.appendChild(activeLabel);
+    itemDiv.appendChild(activeToggleContainer);
     itemDiv.appendChild(deleteItemBtn);
 
+    // Add to the section's items container
     document.querySelector(`#${sectionId} .items`).appendChild(itemDiv);
 
     if (!data.name) nameInput.focus();
@@ -1190,4 +1235,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Add event listener for HTML generation button (already in HTML)
     document.getElementById('generate-html').addEventListener('click', generateHTML);
+    
+    // Allow clicking anywhere in section header to toggle collapse
+    document.addEventListener('click', function(e) {
+        const sectionHeader = e.target.closest('.section-header');
+        if (sectionHeader && !e.target.closest('input, button')) {
+            const sectionId = sectionHeader.closest('.section-card').id;
+            toggleSection(sectionId);
+        }
+    });
 }); 
