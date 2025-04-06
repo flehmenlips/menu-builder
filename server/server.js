@@ -54,6 +54,30 @@ app.post('/api/menus', async (req, res) => {
             return res.status(409).json({ error: 'Menu name already exists' });
         }
         
+        // Validate input data
+        if (!elements) {
+            return res.status(400).json({ error: 'Menu elements are missing' });
+        }
+        
+        if (!Array.isArray(elements)) {
+            return res.status(400).json({ error: 'Menu elements must be an array' });
+        }
+        
+        // Validate each element has the required properties
+        for (const element of elements) {
+            if (!element.type) {
+                return res.status(400).json({ error: 'Each element must have a type property' });
+            }
+            
+            if (element.type === 'section' && !element.name) {
+                return res.status(400).json({ error: 'Each section must have a name property' });
+            }
+            
+            if (element.type === 'spacer' && (!element.size || !element.unit)) {
+                return res.status(400).json({ error: 'Each spacer must have size and unit properties' });
+            }
+        }
+        
         const menu = await db.createMenu(
             name, 
             title, 
@@ -69,7 +93,7 @@ app.post('/api/menus', async (req, res) => {
         res.status(201).json(menu);
     } catch (error) {
         console.error('Error creating menu:', error);
-        res.status(500).json({ error: 'Failed to create menu' });
+        res.status(500).json({ error: `Failed to create menu: ${error.message}` });
     }
 });
 
@@ -77,6 +101,30 @@ app.put('/api/menus/:name', async (req, res) => {
     try {
         const { title, subtitle, font, layout, showDollarSign, showDecimals, showSectionDividers, elements } = req.body;
         const menuName = req.params.name;
+        
+        // Validate input data
+        if (!elements) {
+            return res.status(400).json({ error: 'Menu elements are missing' });
+        }
+        
+        if (!Array.isArray(elements)) {
+            return res.status(400).json({ error: 'Menu elements must be an array' });
+        }
+        
+        // Validate each element has the required properties
+        for (const element of elements) {
+            if (!element.type) {
+                return res.status(400).json({ error: 'Each element must have a type property' });
+            }
+            
+            if (element.type === 'section' && !element.name) {
+                return res.status(400).json({ error: 'Each section must have a name property' });
+            }
+            
+            if (element.type === 'spacer' && (!element.size || !element.unit)) {
+                return res.status(400).json({ error: 'Each spacer must have size and unit properties' });
+            }
+        }
         
         const menu = await db.updateMenu(
             menuName, 
@@ -97,7 +145,7 @@ app.put('/api/menus/:name', async (req, res) => {
         res.json(menu);
     } catch (error) {
         console.error('Error updating menu:', error);
-        res.status(500).json({ error: 'Failed to update menu' });
+        res.status(500).json({ error: `Failed to update menu: ${error.message}` });
     }
 });
 

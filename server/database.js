@@ -178,9 +178,12 @@ const createSection = async (menuName, section, position) => {
                 if (err) reject(err);
                 else {
                     try {
-                        await Promise.all(
-                            section.items.map((item, index) => createItem(this.lastID, item, index))
-                        );
+                        // Only process items if they exist
+                        if (section.items && Array.isArray(section.items)) {
+                            await Promise.all(
+                                section.items.map((item, index) => createItem(this.lastID, item, index))
+                            );
+                        }
                         resolve();
                     } catch (error) {
                         reject(error);
