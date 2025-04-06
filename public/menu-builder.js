@@ -497,56 +497,6 @@ function isAtColumnBreak(element) {
     return nextRect.top > rect.bottom;
 }
 
-// Update the PDF generation
-document.getElementById('generate-pdf').addEventListener('click', () => {
-    const element = document.getElementById('menu-preview');
-    const opt = {
-        margin: 1,
-        filename: 'menu.pdf',
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-            scale: 2,
-            useCORS: true,
-            letterRendering: true,
-            logging: true,
-            allowTaint: true,
-            backgroundColor: '#ffffff',
-            windowWidth: 800,
-            windowHeight: 1200
-        },
-        jsPDF: { 
-            unit: 'in', 
-            format: 'letter', 
-            orientation: 'portrait'
-        }
-    };
-
-    // Create a temporary div with the menu content
-    const tempDiv = document.createElement('div');
-    tempDiv.style.position = 'absolute';
-    tempDiv.style.left = '-9999px';
-    tempDiv.style.top = '-9999px';
-    tempDiv.style.width = '8.5in';
-    tempDiv.style.padding = '1in';
-    tempDiv.style.backgroundColor = 'white';
-    tempDiv.style.fontFamily = document.getElementById('font-select').value;
-    tempDiv.style.fontSize = '16px';
-    tempDiv.style.lineHeight = '1.5';
-    tempDiv.innerHTML = element.innerHTML;
-    document.body.appendChild(tempDiv);
-
-    // Wait for fonts to load
-    document.fonts.ready.then(() => {
-        // Generate PDF from the temporary div
-        html2pdf().set(opt).from(tempDiv).save().then(() => {
-            document.body.removeChild(tempDiv);
-        }).catch(error => {
-            console.error('PDF generation error:', error);
-            document.body.removeChild(tempDiv);
-        });
-    });
-});
-
 // Generate HTML function
 function generateHTML() {
     // Get menu data
@@ -813,16 +763,10 @@ function generateHTML() {
         </html>
     `;
 
-    // Create a blob and download the file
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'menu.html';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // Open in a new tab instead of downloading
+    const newTab = window.open();
+    newTab.document.write(html);
+    newTab.document.close();
 }
 
 // Save menu
@@ -1287,14 +1231,17 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('font-select').addEventListener('change', (e) => loadFont(e.target.value));
     document.getElementById('layout-select').addEventListener('change', updatePreview);
     
-    // Add print button
-    addPrintButton();
+    // Add spacer button
+    document.getElementById('add-spacer').addEventListener('click', () => addSpacer());
+    
+    // Generate HTML button
+    document.getElementById('generate-html').addEventListener('click', generateHTML);
+    
+    // Print menu button in preview section
+    document.getElementById('print-menu-btn').addEventListener('click', generateHTML);
     
     // Initialize menu select
     updateMenuSelect();
-    
-    // Add event listener for HTML generation button (already in HTML)
-    document.getElementById('generate-html').addEventListener('click', generateHTML);
     
     // Allow clicking anywhere in section header to toggle collapse
     document.addEventListener('click', function(e) {
@@ -1304,16 +1251,13 @@ document.addEventListener('DOMContentLoaded', function() {
             toggleSection(sectionId);
         }
     });
-
-    // Add spacer button
-    document.getElementById('add-spacer').addEventListener('click', () => addSpacer());
 });
 
 // Add a spacer element
 function addSpacer(data = {}) {
     const spacerId = `spacer-${spacerCounter++}`;
     const spacerDiv = document.createElement('div');
-    spacerDiv.className = 'spacer-card';
+    spacerDiv.className = 'spacer-card spacer-expanded';
     spacerDiv.id = spacerId;
     spacerDiv.dataset.type = 'spacer';
 
@@ -1338,6 +1282,16 @@ function addSpacer(data = {}) {
     // Create spacer header
     const spacerHeader = document.createElement('div');
     spacerHeader.className = 'spacer-header';
+
+    // Create toggle button for collapsing/expanding
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'spacer-toggle-btn';
+    toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
+    toggleBtn.title = 'Toggle Spacer';
+    toggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleSpacer(spacerId);
+    });
 
     // Create spacer size input
     const sizeLabel = document.createElement('label');
@@ -1404,19 +1358,50 @@ function addSpacer(data = {}) {
     controlsContainer.className = 'controls';
     controlsContainer.appendChild(deleteBtn);
 
+    // Create spacer content area (for collapsible content)
+    const spacerContent = document.createElement('div');
+    spacerContent.className = 'spacer-content';
+
     // Assemble the spacer
+    spacerHeader.appendChild(toggleBtn);
     spacerHeader.appendChild(sizeLabel);
     spacerHeader.appendChild(sizeInput);
     spacerHeader.appendChild(unitSelect);
     spacerHeader.appendChild(controlsContainer);
 
-    spacerDiv.appendChild(spacerHeader);
+    spacerContent.appendChild(spacerHeader);
+
+    // Create collapsed view (just shows a preview of the spacer)
+    const collapsedView = document.createElement('div');
+    collapsedView.className = 'spacer-collapsed-view';
+    collapsedView.innerHTML = '<i class="fas fa-arrows-alt-v"></i> Spacer';
+    collapsedView.addEventListener('click', () => toggleSpacer(spacerId));
+
+    spacerDiv.appendChild(collapsedView);
+    spacerDiv.appendChild(spacerContent);
     spacerDiv.appendChild(spacerPreview);
 
     // Add to sections container
     document.getElementById('sections').appendChild(spacerDiv);
 
     updatePreview();
+}
+
+// Toggle spacer collapse/expand
+function toggleSpacer(spacerId) {
+    const spacer = document.getElementById(spacerId);
+    const isCollapsed = spacer.classList.contains('spacer-collapsed');
+    const toggleBtn = spacer.querySelector('.spacer-toggle-btn');
+    
+    if (isCollapsed) {
+        spacer.classList.remove('spacer-collapsed');
+        spacer.classList.add('spacer-expanded');
+        toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
+    } else {
+        spacer.classList.remove('spacer-expanded');
+        spacer.classList.add('spacer-collapsed');
+        toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
+    }
 }
 
 // Update spacer preview based on size and unit

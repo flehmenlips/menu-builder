@@ -374,6 +374,15 @@ input:focus, select:focus {
     color: #343a40;
 }
 
+#print-menu-btn {
+    margin-top: 20px;
+    background-color: #28a745;
+}
+
+#print-menu-btn:hover {
+    background-color: #218838;
+}
+
 .menu-section {
     margin-bottom: 20px;
 }
@@ -798,30 +807,70 @@ button:only-child .fas {
 /* Spacer styling */
 .spacer-card {
     background: #fff;
-    padding: 15px;
+    padding: 0;
     margin-bottom: 15px;
     border-radius: 4px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    display: flex;
-    align-items: center;
-    gap: 15px;
     position: relative;
+    overflow: hidden;
 }
 
 .spacer-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 10px;
+    padding: 15px;
     width: 100%;
 }
 
+.spacer-content {
+    width: 100%;
+    transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+    overflow: hidden;
+}
+
+.spacer-collapsed .spacer-content {
+    max-height: 0;
+    opacity: 0;
+    padding: 0;
+}
+
+.spacer-expanded .spacer-content {
+    max-height: 100px;
+    opacity: 1;
+}
+
+.spacer-collapsed-view {
+    display: none;
+    padding: 10px 15px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    cursor: pointer;
+    font-size: 14px;
+    color: #6c757d;
+}
+
+.spacer-collapsed .spacer-collapsed-view {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.spacer-collapsed-view:hover {
+    background-color: #e9ecef;
+}
+
+.spacer-collapsed .spacer-preview {
+    height: 20px !important;
+}
+
 .spacer-size {
-    width: 100px;
+    width: 80px;
     margin: 0;
 }
 
 .spacer-unit-select {
-    width: 80px;
+    width: 60px;
     margin: 0;
 }
 
@@ -829,13 +878,35 @@ button:only-child .fas {
     background-color: #f8f9fa;
     border: 1px dashed #dee2e6;
     width: 100%;
+    border-radius: 0 0 4px 4px;
+    transition: height 0.3s ease;
+}
+
+.spacer-toggle-btn {
+    background: none;
+    border: none;
+    font-size: 16px;
+    color: #6c757d;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
     border-radius: 4px;
+    background-color: #e9ecef;
+    flex-shrink: 0;
+}
+
+.spacer-toggle-btn:hover {
+    background-color: #dee2e6;
 }
 
 .spacer-card .controls {
     display: flex;
     align-items: center;
     gap: 8px;
+    margin-left: auto;
 }
 
 /* Move buttons for spacer */
