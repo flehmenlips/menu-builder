@@ -54,46 +54,52 @@ app.post('/api/menus', async (req, res) => {
             return res.status(409).json({ error: 'Menu name already exists' });
         }
         
-        // Validate input data
+        // Validate input data with safe defaults
         if (!elements) {
-            return res.status(400).json({ error: 'Menu elements are missing' });
+            console.warn(`Creating menu "${name}" with missing elements`);
+            req.body.elements = [];
         }
         
-        if (!Array.isArray(elements)) {
-            return res.status(400).json({ error: 'Menu elements must be an array' });
+        if (!Array.isArray(req.body.elements)) {
+            console.warn(`Creating menu "${name}" with non-array elements. Converting to array.`);
+            req.body.elements = [];
         }
         
-        // Validate each element has the required properties
-        for (const element of elements) {
-            if (!element.type) {
-                return res.status(400).json({ error: 'Each element must have a type property' });
-            }
+        try {
+            const menu = await db.createMenu(
+                name, 
+                title || '', 
+                subtitle || '', 
+                font || 'Playfair Display', 
+                layout || 'single', 
+                showDollarSign === undefined ? true : showDollarSign, 
+                showDecimals === undefined ? true : showDecimals, 
+                showSectionDividers === undefined ? true : showSectionDividers, 
+                req.body.elements
+            );
             
-            if (element.type === 'section' && !element.name) {
-                return res.status(400).json({ error: 'Each section must have a name property' });
-            }
+            res.status(201).json(menu);
+        } catch (dbError) {
+            console.error('Database error creating menu:', dbError);
             
-            if (element.type === 'spacer' && (!element.size || !element.unit)) {
-                return res.status(400).json({ error: 'Each spacer must have size and unit properties' });
+            // Check if the menu was created despite errors
+            try {
+                const createdMenu = await db.getMenu(name);
+                if (createdMenu) {
+                    res.status(500).json({ 
+                        error: `Menu partially created, but encountered an error: ${dbError.message}`,
+                        menu: createdMenu 
+                    });
+                } else {
+                    res.status(500).json({ error: `Failed to create menu: ${dbError.message}` });
+                }
+            } catch (secondError) {
+                res.status(500).json({ error: `Failed to create menu: ${dbError.message}` });
             }
         }
-        
-        const menu = await db.createMenu(
-            name, 
-            title, 
-            subtitle, 
-            font, 
-            layout, 
-            showDollarSign, 
-            showDecimals, 
-            showSectionDividers, 
-            elements
-        );
-        
-        res.status(201).json(menu);
     } catch (error) {
-        console.error('Error creating menu:', error);
-        res.status(500).json({ error: `Failed to create menu: ${error.message}` });
+        console.error('Error in create endpoint:', error);
+        res.status(500).json({ error: `Unexpected error creating menu: ${error.message}` });
     }
 });
 
@@ -104,48 +110,56 @@ app.put('/api/menus/:name', async (req, res) => {
         
         // Validate input data
         if (!elements) {
-            return res.status(400).json({ error: 'Menu elements are missing' });
+            console.warn(`Attempting to update menu "${menuName}" with missing elements`);
+            // Instead of returning an error, we'll proceed with an empty elements array
+            req.body.elements = [];
         }
         
-        if (!Array.isArray(elements)) {
-            return res.status(400).json({ error: 'Menu elements must be an array' });
+        if (!Array.isArray(req.body.elements)) {
+            console.warn(`Attempting to update menu "${menuName}" with non-array elements. Converting to array.`);
+            // Convert to an empty array if not already an array
+            req.body.elements = [];
         }
         
-        // Validate each element has the required properties
-        for (const element of elements) {
-            if (!element.type) {
-                return res.status(400).json({ error: 'Each element must have a type property' });
+        try {
+            const menu = await db.updateMenu(
+                menuName, 
+                title || '', 
+                subtitle || '', 
+                font || 'Playfair Display', 
+                layout || 'single', 
+                showDollarSign === undefined ? true : showDollarSign, 
+                showDecimals === undefined ? true : showDecimals, 
+                showSectionDividers === undefined ? true : showSectionDividers, 
+                req.body.elements
+            );
+            
+            if (!menu) {
+                return res.status(404).json({ error: 'Menu not found' });
             }
             
-            if (element.type === 'section' && !element.name) {
-                return res.status(400).json({ error: 'Each section must have a name property' });
-            }
+            res.json(menu);
+        } catch (dbError) {
+            console.error('Database error updating menu:', dbError);
             
-            if (element.type === 'spacer' && (!element.size || !element.unit)) {
-                return res.status(400).json({ error: 'Each spacer must have size and unit properties' });
+            // Still try to get the menu to return something to the client
+            try {
+                const existingMenu = await db.getMenu(menuName);
+                if (existingMenu) {
+                    res.status(500).json({ 
+                        error: `Menu partially updated, but encountered an error: ${dbError.message}`,
+                        menu: existingMenu 
+                    });
+                } else {
+                    res.status(500).json({ error: `Failed to update menu: ${dbError.message}` });
+                }
+            } catch (secondError) {
+                res.status(500).json({ error: `Failed to update menu: ${dbError.message}` });
             }
         }
-        
-        const menu = await db.updateMenu(
-            menuName, 
-            title, 
-            subtitle, 
-            font, 
-            layout, 
-            showDollarSign, 
-            showDecimals, 
-            showSectionDividers, 
-            elements
-        );
-        
-        if (!menu) {
-            return res.status(404).json({ error: 'Menu not found' });
-        }
-        
-        res.json(menu);
     } catch (error) {
-        console.error('Error updating menu:', error);
-        res.status(500).json({ error: `Failed to update menu: ${error.message}` });
+        console.error('Error in update endpoint:', error);
+        res.status(500).json({ error: `Unexpected error updating menu: ${error.message}` });
     }
 });
 

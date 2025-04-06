@@ -147,17 +147,38 @@ const createMenu = async (name, title, subtitle, font, layout, showDollarSign, s
                 if (err) reject(err);
                 else {
                     try {
+                        // Create elements with additional validation
                         if (elements && Array.isArray(elements)) {
+                            // Filter out any undefined or invalid elements before mapping
+                            const validElements = elements.filter(element => 
+                                element && typeof element === 'object' && element.type
+                            );
+                            
+                            if (validElements.length === 0) {
+                                console.warn(`Warning: No valid elements found for menu "${name}"`);
+                            }
+                            
                             await Promise.all(
-                                elements.map(async (element) => {
-                                    if (element.type === 'section') {
-                                        return createSection(name, element, element.position);
-                                    } else if (element.type === 'spacer') {
-                                        return createSpacer(name, element, element.position);
+                                validElements.map(async (element, index) => {
+                                    try {
+                                        if (element.type === 'section') {
+                                            return createSection(name, element, element.position || index);
+                                        } else if (element.type === 'spacer') {
+                                            return createSpacer(name, element, element.position || index);
+                                        } else {
+                                            console.warn(`Skipping element with unknown type: ${element.type}`);
+                                            return Promise.resolve();
+                                        }
+                                    } catch (error) {
+                                        console.error(`Error processing element at index ${index}:`, error);
+                                        return Promise.resolve(); // Continue with other elements
                                     }
                                 })
                             );
+                        } else {
+                            console.warn(`No elements array provided for menu "${name}"`);
                         }
+                        
                         const menu = await getMenu(name);
                         resolve(menu);
                     } catch (error) {
@@ -171,23 +192,48 @@ const createMenu = async (name, title, subtitle, font, layout, showDollarSign, s
 
 const createSection = async (menuName, section, position) => {
     return new Promise((resolve, reject) => {
+        // Add validation for required fields
+        if (!section || !section.name) {
+            console.warn('Invalid section data: missing name');
+            return resolve(); // Skip this section but don't fail
+        }
+
+        const active = section.active === undefined ? 1 : section.active;
+        
         db.run(
             'INSERT INTO sections (menu_name, name, active, position) VALUES (?, ?, ?, ?)',
-            [menuName, section.name, section.active, position],
+            [menuName, section.name, active, position],
             async function(err) {
-                if (err) reject(err);
-                else {
-                    try {
-                        // Only process items if they exist
-                        if (section.items && Array.isArray(section.items)) {
+                if (err) {
+                    console.error('Error creating section:', err);
+                    return resolve(); // Don't reject, just log and continue
+                }
+                
+                try {
+                    // Only process items if they exist
+                    if (section.items && Array.isArray(section.items)) {
+                        // Filter out invalid items
+                        const validItems = section.items.filter(item => 
+                            item && typeof item === 'object' && item.name
+                        );
+                        
+                        if (validItems.length > 0) {
                             await Promise.all(
-                                section.items.map((item, index) => createItem(this.lastID, item, index))
+                                validItems.map((item, index) => {
+                                    try {
+                                        return createItem(this.lastID, item, index);
+                                    } catch (error) {
+                                        console.error(`Error creating item at index ${index}:`, error);
+                                        return Promise.resolve(); // Continue with other items
+                                    }
+                                })
                             );
                         }
-                        resolve();
-                    } catch (error) {
-                        reject(error);
                     }
+                    resolve();
+                } catch (error) {
+                    console.error('Error processing section items:', error);
+                    resolve(); // Don't reject, just log and continue
                 }
             }
         );
@@ -196,12 +242,27 @@ const createSection = async (menuName, section, position) => {
 
 const createItem = async (sectionId, item, position) => {
     return new Promise((resolve, reject) => {
+        // Add validation for required fields
+        if (!item || !item.name) {
+            console.warn('Invalid item data: missing name');
+            return resolve(); // Skip this item but don't fail
+        }
+
+        // Set default values for optional properties
+        const description = item.description || '';
+        const price = item.price || '';
+        const active = item.active === undefined ? 1 : item.active;
+        
         db.run(
             'INSERT INTO items (section_id, name, description, price, active, position) VALUES (?, ?, ?, ?, ?, ?)',
-            [sectionId, item.name, item.description, item.price, item.active, position],
+            [sectionId, item.name, description, price, active, position],
             function(err) {
-                if (err) reject(err);
-                else resolve();
+                if (err) {
+                    console.error('Error creating item:', err);
+                    resolve(); // Don't reject, just log and continue
+                } else {
+                    resolve();
+                }
             }
         );
     });
@@ -209,12 +270,26 @@ const createItem = async (sectionId, item, position) => {
 
 const createSpacer = async (menuName, spacer, position) => {
     return new Promise((resolve, reject) => {
+        // Add validation for required fields
+        if (!spacer) {
+            console.warn('Invalid spacer data: missing spacer object');
+            return resolve(); // Skip this spacer but don't fail
+        }
+
+        // Set default values for required properties
+        const size = spacer.size || '30';
+        const unit = spacer.unit || 'px';
+        
         db.run(
             'INSERT INTO spacers (menu_name, size, unit, position) VALUES (?, ?, ?, ?)',
-            [menuName, spacer.size, spacer.unit, position],
+            [menuName, size, unit, position],
             function(err) {
-                if (err) reject(err);
-                else resolve();
+                if (err) {
+                    console.error('Error creating spacer:', err);
+                    resolve(); // Don't reject, just log and continue
+                } else {
+                    resolve();
+                }
             }
         );
     });
@@ -234,17 +309,36 @@ const updateMenu = async (name, title, subtitle, font, layout, showDollarSign, s
                         await deleteSections(name);
                         await deleteSpacers(name);
                         
-                        // Create new elements
+                        // Create new elements - with additional validation
                         if (elements && Array.isArray(elements)) {
+                            // Filter out any undefined or invalid elements before mapping
+                            const validElements = elements.filter(element => 
+                                element && typeof element === 'object' && element.type
+                            );
+                            
+                            if (validElements.length === 0) {
+                                console.warn(`Warning: No valid elements found for menu "${name}"`);
+                            }
+                            
                             await Promise.all(
-                                elements.map(async (element) => {
-                                    if (element.type === 'section') {
-                                        return createSection(name, element, element.position);
-                                    } else if (element.type === 'spacer') {
-                                        return createSpacer(name, element, element.position);
+                                validElements.map(async (element, index) => {
+                                    try {
+                                        if (element.type === 'section') {
+                                            return createSection(name, element, element.position || index);
+                                        } else if (element.type === 'spacer') {
+                                            return createSpacer(name, element, element.position || index);
+                                        } else {
+                                            console.warn(`Skipping element with unknown type: ${element.type}`);
+                                            return Promise.resolve();
+                                        }
+                                    } catch (error) {
+                                        console.error(`Error processing element at index ${index}:`, error);
+                                        return Promise.resolve(); // Continue with other elements
                                     }
                                 })
                             );
+                        } else {
+                            console.warn(`No elements array provided for menu "${name}"`);
                         }
                         
                         const menu = await getMenu(name);
