@@ -218,19 +218,26 @@ function addItem(sectionId, data = {}) {
     activeToggleContainer.appendChild(activeToggle);
     activeToggleContainer.appendChild(activeLabel);
 
+    // Create controls container
+    const controlsContainer = document.createElement('div');
+    controlsContainer.className = 'controls';
+
     // Delete item button with icon
     const deleteItemBtn = document.createElement('button');
     deleteItemBtn.className = 'btn btn-sm btn-secondary';
     deleteItemBtn.innerHTML = '<i class="fas fa-trash"></i>';
     deleteItemBtn.title = 'Delete Item';
     deleteItemBtn.addEventListener('click', () => deleteItem(itemId));
+    
+    // Add delete button to controls
+    controlsContainer.appendChild(deleteItemBtn);
 
     // Add all elements to item div
     itemDiv.appendChild(nameInput);
     itemDiv.appendChild(descInput);
     itemDiv.appendChild(priceInput);
     itemDiv.appendChild(activeToggleContainer);
-    itemDiv.appendChild(deleteItemBtn);
+    itemDiv.appendChild(controlsContainer);
 
     // Add to the section's items container
     document.querySelector(`#${sectionId} .items`).appendChild(itemDiv);
