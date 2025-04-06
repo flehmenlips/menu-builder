@@ -1,0 +1,460 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f4f4;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+h1, h2 {
+    text-align: center;
+}
+
+.content {
+    margin-bottom: 20px;
+}
+
+input, select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 5px;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.section-card {
+    background: #f9f9f9;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+}
+
+.item-card {
+    background: #e9ecef;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 4px;
+}
+
+.inactive .section-name,
+.inactive .item-name,
+.inactive .item-desc,
+.item-price {
+    color: #aaa;
+}
+
+.preview {
+    margin-top: 20px;
+}
+
+.menu-section {
+    margin-bottom: 20px;
+}
+
+.menu-item {
+    margin-bottom: 10px;
+}
+
+.name-price {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+}
+
+.menu-management {
+    margin-bottom: 20px;
+}
+
+.menu-name-input {
+    width: 70%;
+    display: inline-block;
+}
+
+.menu-select {
+    width: 70%;
+    display: inline-block;
+}
+
+.layout-select {
+    margin-bottom: 10px;
+}
+
+.two-columns {
+    column-count: 2;
+    column-gap: 20px;
+}
+
+.two-per-page {
+    display: flex;
+    justify-content: space-between;
+}
+
+.two-per-page .menu {
+    width: 48%;
+}
+
+/* Configuration controls */
+.config-controls {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.config-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.config-option label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.config-option input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+/* Drag and drop styles */
+.section-card, .item-card {
+    cursor: move;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.section-card.dragging, .item-card.dragging {
+    opacity: 0.5;
+    transform: scale(1.02);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+}
+
+.section-card.drag-over, .item-card.drag-over {
+    border-top: 2px solid #007bff;
+    margin-top: 2px;
+}
+
+/* Move buttons styles */
+.move-buttons {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 5px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px 0 0 4px;
+}
+
+.move-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px;
+    font-size: 12px;
+    color: #666;
+    transition: color 0.2s ease;
+}
+
+.move-btn:hover {
+    color: #007bff;
+}
+
+/* Update section and item card styles */
+.section-card, .item-card {
+    position: relative;
+    padding-left: 40px;
+    transition: all 0.2s ease;
+}
+
+/* PDF generation fixes */
+.menu-content {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    width: 100%;
+    max-width: 8.5in;
+    margin: 0 auto;
+    padding: 1in;
+    box-sizing: border-box;
+    font-size: 16px;
+    line-height: 1.5;
+    background-color: white;
+}
+
+.menu-section {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.menu-item {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin-bottom: 10px;
+}
+
+.name-price {
+    display: flex;
+    justify-content: space-between;
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+/* Two-column layout improvements */
+.two-columns {
+    column-count: 2;
+    column-gap: 40px;
+    column-fill: balance;
+    width: 100%;
+    max-width: 8.5in;
+    margin: 0 auto;
+    padding: 1in;
+    box-sizing: border-box;
+}
+
+.two-columns .menu-section {
+    break-inside: avoid;
+    margin-bottom: 20px;
+    page-break-inside: avoid;
+    position: relative;
+}
+
+.two-columns .menu-item {
+    break-inside: avoid;
+    margin-bottom: 10px;
+    page-break-inside: avoid;
+}
+
+/* Section dividers */
+.section-divider {
+    border: none;
+    border-top: 2px dashed #ddd;
+    margin: 20px 0;
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+/* Two-per-page layout improvements */
+.two-per-page {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.two-per-page .menu {
+    break-after: page;
+}
+
+/* Special character handling */
+.menu-preview {
+    font-family: var(--selected-font, 'Playfair Display'), serif;
+}
+
+.menu-preview h1, 
+.menu-preview h2, 
+.menu-preview h3 {
+    font-family: inherit;
+}
+
+/* Drag handle styles */
+.drag-handle {
+    cursor: move;
+    width: 20px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px 0 0 4px;
+    position: absolute;
+    left: 0;
+    top: 0;
+    transition: background-color 0.2s ease;
+}
+
+.drag-handle::before {
+    content: "⋮⋮";
+    font-size: 16px;
+    line-height: 1;
+}
+
+.drag-handle:hover {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+/* Print button styling */
+.print-btn {
+    display: block;
+    margin: 10px 0;
+    padding: 8px 16px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.print-btn:hover {
+    background-color: #45a049;
+}
+
+/* Hide print iframe from view but keep it accessible for printing */
+#print-frame {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    width: 0;
+    height: 0;
+    border: 0;
+}
+
+/* Print layout improvements */
+@media print {
+    body {
+        margin: 0;
+        padding: 0;
+        width: 8.5in;
+        height: 11in;
+        background: white;
+    }
+
+    #menu-preview {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 8.5in;
+        height: 11in;
+        margin: 0;
+        padding: 0.5in;
+        box-sizing: border-box;
+        background: white;
+    }
+
+    .menu-content {
+        width: 7.5in;
+        height: 10in;
+        margin: 0;
+        padding: 0;
+        font-size: 12pt;
+        line-height: 1.4;
+        background: white;
+    }
+
+    /* Maintain column layout in print */
+    .two-columns {
+        column-count: 2 !important;
+        column-gap: 0.5in !important;
+        column-fill: balance !important;
+        width: 7.5in !important;
+        height: 10in !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        background: white;
+    }
+
+    .menu-section {
+        break-inside: avoid;
+        page-break-inside: avoid;
+        margin-bottom: 0.5in;
+        background: white;
+    }
+
+    .menu-item {
+        break-inside: avoid;
+        page-break-inside: avoid;
+        margin-bottom: 0.25in;
+        background: white;
+    }
+
+    .name-price {
+        display: flex;
+        justify-content: space-between;
+        break-inside: avoid;
+        page-break-inside: avoid;
+        background: white;
+    }
+
+    .section-divider {
+        border: none;
+        border-top: 1px dashed #ddd;
+        margin: 0.25in 0;
+        break-inside: avoid;
+        page-break-inside: avoid;
+        background: white;
+    }
+
+    /* Ensure proper text alignment */
+    h1, h2, h3 {
+        text-align: center !important;
+        margin: 0.25in 0 !important;
+        background: white;
+    }
+
+    .print-btn {
+        display: none;
+    }
+
+    /* Ensure proper page breaks and margins */
+    @page {
+        size: letter;
+        margin: 0.5in;
+    }
+
+    /* Hide everything except the menu preview */
+    body > *:not(#menu-preview) {
+        display: none !important;
+    }
+
+    /* Ensure proper font rendering */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+} 
