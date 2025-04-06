@@ -4,6 +4,9 @@ const path = require('path');
 // Initialize database
 const db = new sqlite3.Database(path.join(__dirname, '../data/menus.db'));
 
+// Enable foreign keys support
+db.run('PRAGMA foreign_keys = ON');
+
 // Create tables
 db.serialize(() => {
     db.run(`
@@ -13,6 +16,10 @@ db.serialize(() => {
             subtitle TEXT,
             font TEXT,
             layout TEXT,
+            show_dollar_sign BOOLEAN DEFAULT 1,
+            show_decimals BOOLEAN DEFAULT 1,
+            show_section_dividers BOOLEAN DEFAULT 1,
+            wrap_special_chars BOOLEAN DEFAULT 1,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
@@ -24,6 +31,7 @@ db.serialize(() => {
             menu_name TEXT,
             name TEXT,
             active BOOLEAN DEFAULT 1,
+            position INTEGER DEFAULT 0,
             FOREIGN KEY (menu_name) REFERENCES menus(name) ON DELETE CASCADE
         )
     `);
@@ -34,8 +42,9 @@ db.serialize(() => {
             section_id INTEGER,
             name TEXT,
             description TEXT,
-            price REAL,
+            price TEXT,
             active BOOLEAN DEFAULT 1,
+            position INTEGER DEFAULT 0,
             FOREIGN KEY (section_id) REFERENCES sections(id) ON DELETE CASCADE
         )
     `);
@@ -69,19 +78,17 @@ const getMenu = async (name) => {
     });
 };
 
-const getSections = (menuName) => {
+const getSections = async (menuName) => {
     return new Promise((resolve, reject) => {
-        db.all('SELECT * FROM sections WHERE menu_name = ?', [menuName], async (err, sections) => {
+        db.all('SELECT * FROM sections WHERE menu_name = ? ORDER BY position', [menuName], async (err, sections) => {
             if (err) reject(err);
             else {
                 try {
-                    const sectionsWithItems = await Promise.all(
-                        sections.map(async (section) => {
-                            const items = await getItems(section.id);
-                            return { ...section, items };
-                        })
-                    );
-                    resolve(sectionsWithItems);
+                    for (const section of sections) {
+                        const items = await getItems(section.id);
+                        section.items = items;
+                    }
+                    resolve(sections);
                 } catch (error) {
                     reject(error);
                 }
@@ -90,26 +97,26 @@ const getSections = (menuName) => {
     });
 };
 
-const getItems = (sectionId) => {
+const getItems = async (sectionId) => {
     return new Promise((resolve, reject) => {
-        db.all('SELECT * FROM items WHERE section_id = ?', [sectionId], (err, rows) => {
+        db.all('SELECT * FROM items WHERE section_id = ? ORDER BY position', [sectionId], (err, items) => {
             if (err) reject(err);
-            else resolve(rows);
+            else resolve(items);
         });
     });
 };
 
-const createMenu = async (name, title, subtitle, font, layout, sections) => {
+const createMenu = async (name, title, subtitle, font, layout, showDollarSign, showDecimals, showSectionDividers, wrapSpecialChars, sections) => {
     return new Promise((resolve, reject) => {
         db.run(
-            'INSERT INTO menus (name, title, subtitle, font, layout) VALUES (?, ?, ?, ?, ?)',
-            [name, title, subtitle, font, layout],
+            'INSERT INTO menus (name, title, subtitle, font, layout, show_dollar_sign, show_decimals, show_section_dividers, wrap_special_chars) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [name, title, subtitle, font, layout, showDollarSign, showDecimals, showSectionDividers, wrapSpecialChars],
             async function(err) {
                 if (err) reject(err);
                 else {
                     try {
                         await Promise.all(
-                            sections.map(section => createSection(name, section))
+                            sections.map((section, index) => createSection(name, section, index))
                         );
                         const menu = await getMenu(name);
                         resolve(menu);
@@ -122,17 +129,17 @@ const createMenu = async (name, title, subtitle, font, layout, sections) => {
     });
 };
 
-const createSection = async (menuName, section) => {
+const createSection = async (menuName, section, position) => {
     return new Promise((resolve, reject) => {
         db.run(
-            'INSERT INTO sections (menu_name, name, active) VALUES (?, ?, ?)',
-            [menuName, section.name, section.active],
+            'INSERT INTO sections (menu_name, name, active, position) VALUES (?, ?, ?, ?)',
+            [menuName, section.name, section.active, position],
             async function(err) {
                 if (err) reject(err);
                 else {
                     try {
                         await Promise.all(
-                            section.items.map(item => createItem(this.lastID, item))
+                            section.items.map((item, index) => createItem(this.lastID, item, index))
                         );
                         resolve();
                     } catch (error) {
@@ -144,12 +151,12 @@ const createSection = async (menuName, section) => {
     });
 };
 
-const createItem = (sectionId, item) => {
+const createItem = async (sectionId, item, position) => {
     return new Promise((resolve, reject) => {
         db.run(
-            'INSERT INTO items (section_id, name, description, price, active) VALUES (?, ?, ?, ?, ?)',
-            [sectionId, item.name, item.description, item.price, item.active],
-            (err) => {
+            'INSERT INTO items (section_id, name, description, price, active, position) VALUES (?, ?, ?, ?, ?, ?)',
+            [sectionId, item.name, item.description, item.price, item.active, position],
+            function(err) {
                 if (err) reject(err);
                 else resolve();
             }
@@ -157,11 +164,11 @@ const createItem = (sectionId, item) => {
     });
 };
 
-const updateMenu = async (name, title, subtitle, font, layout, sections) => {
+const updateMenu = async (name, title, subtitle, font, layout, showDollarSign, showDecimals, showSectionDividers, wrapSpecialChars, sections) => {
     return new Promise((resolve, reject) => {
         db.run(
-            'UPDATE menus SET title = ?, subtitle = ?, font = ?, layout = ?, updated_at = CURRENT_TIMESTAMP WHERE name = ?',
-            [title, subtitle, font, layout, name],
+            'UPDATE menus SET title = ?, subtitle = ?, font = ?, layout = ?, show_dollar_sign = ?, show_decimals = ?, show_section_dividers = ?, wrap_special_chars = ?, updated_at = CURRENT_TIMESTAMP WHERE name = ?',
+            [title, subtitle, font, layout, showDollarSign, showDecimals, showSectionDividers, wrapSpecialChars, name],
             async function(err) {
                 if (err) reject(err);
                 else if (this.changes === 0) resolve(null);
@@ -169,9 +176,9 @@ const updateMenu = async (name, title, subtitle, font, layout, sections) => {
                     try {
                         // Delete existing sections and items
                         await deleteSections(name);
-                        // Create new sections and items
+                        // Create new sections and items with positions
                         await Promise.all(
-                            sections.map(section => createSection(name, section))
+                            sections.map((section, index) => createSection(name, section, index))
                         );
                         const menu = await getMenu(name);
                         resolve(menu);
@@ -195,9 +202,18 @@ const deleteSections = (menuName) => {
 
 const deleteMenu = (name) => {
     return new Promise((resolve, reject) => {
-        db.run('DELETE FROM menus WHERE name = ?', [name], function(err) {
-            if (err) reject(err);
-            else resolve(this.changes > 0);
+        // First ensure that sections are deleted
+        db.run('DELETE FROM sections WHERE menu_name = ?', [name], (sectionErr) => {
+            if (sectionErr) {
+                reject(sectionErr);
+                return;
+            }
+            
+            // Then delete the menu
+            db.run('DELETE FROM menus WHERE name = ?', [name], function(err) {
+                if (err) reject(err);
+                else resolve(this.changes > 0);
+            });
         });
     });
 };

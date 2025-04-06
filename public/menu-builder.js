@@ -47,7 +47,7 @@ function addSection(data = {}) {
     const activeToggle = document.createElement('input');
     activeToggle.type = 'checkbox';
     activeToggle.className = 'active-toggle';
-    activeToggle.checked = data.active !== false;
+    activeToggle.checked = data.active !== false && data.active !== 0;
 
     const activeLabel = document.createElement('label');
     activeLabel.textContent = 'Active';
@@ -129,16 +129,15 @@ function addItem(sectionId, data = {}) {
     descInput.value = data.description || '';
 
     const priceInput = document.createElement('input');
-    priceInput.type = 'number';
+    priceInput.type = 'text';
     priceInput.className = 'item-price';
     priceInput.placeholder = 'Price';
-    priceInput.step = '0.01';
     priceInput.value = data.price || '';
 
     const activeToggle = document.createElement('input');
     activeToggle.type = 'checkbox';
     activeToggle.className = 'active-toggle';
-    activeToggle.checked = data.active !== false;
+    activeToggle.checked = data.active !== false && data.active !== 0;
 
     const activeLabel = document.createElement('label');
     activeLabel.textContent = 'Active';
@@ -316,9 +315,22 @@ function updatePreview() {
 
                     if (itemPrice) {
                         const priceSpan = document.createElement('span');
-                        const price = parseFloat(itemPrice);
-                        const formattedPrice = config.showDecimals ? price.toFixed(2) : Math.round(price);
-                        priceSpan.textContent = config.showDollarSign ? `$${formattedPrice}` : formattedPrice;
+                        
+                        // Format price, handling both numeric and text values
+                        let formattedPrice = itemPrice;
+                        
+                        // Check if the price is a valid number
+                        if (!isNaN(parseFloat(itemPrice)) && isFinite(itemPrice)) {
+                            const price = parseFloat(itemPrice);
+                            formattedPrice = config.showDecimals ? price.toFixed(2) : Math.round(price);
+                        }
+                        
+                        // Add dollar sign if configured
+                        if (config.showDollarSign && !itemPrice.includes('$')) {
+                            formattedPrice = '$' + formattedPrice;
+                        }
+                        
+                        priceSpan.textContent = formattedPrice;
                         namePrice.appendChild(priceSpan);
                     }
 
@@ -585,27 +597,47 @@ document.getElementById('save-menu').addEventListener('click', async () => {
         return;
     }
 
+    // Get all sections and sort them by their current order in the DOM
+    const sections = Array.from(document.querySelectorAll('.section-card'))
+        .map((section, index) => ({
+            name: section.querySelector('.section-name').value,
+            active: section.querySelector('.active-toggle').checked,
+            items: Array.from(section.querySelectorAll('.item-card'))
+                .map((item, itemIndex) => ({
+                    name: item.querySelector('.item-name').value,
+                    description: item.querySelector('.item-desc').value,
+                    price: item.querySelector('.item-price').value,
+                    active: item.querySelector('.active-toggle').checked,
+                    position: itemIndex
+                })),
+            position: index
+        }));
+
     const menuData = {
         name: menuName,
         title: document.getElementById('title').value,
         subtitle: document.getElementById('subtitle').value,
         font: document.getElementById('font-select').value,
         layout: document.getElementById('layout-select').value,
-        sections: Array.from(document.querySelectorAll('.section-card')).map(section => ({
-            name: section.querySelector('.section-name').value,
-            active: section.querySelector('.active-toggle').checked,
-            items: Array.from(section.querySelectorAll('.item-card')).map(item => ({
-                name: item.querySelector('.item-name').value,
-                description: item.querySelector('.item-desc').value,
-                price: item.querySelector('.item-price').value,
-                active: item.querySelector('.active-toggle').checked
-            }))
-        }))
+        showDollarSign: config.showDollarSign,
+        showDecimals: config.showDecimals,
+        showSectionDividers: config.showSectionDividers,
+        wrapSpecialChars: config.wrapSpecialChars,
+        sections: sections
     };
 
     try {
-        const response = await fetch('/api/menus', {
-            method: 'POST',
+        // Check if this menu name already exists
+        const checkResponse = await fetch('/api/menus');
+        const existingMenus = await checkResponse.json();
+        const menuExists = existingMenus.some(menu => menu.name === menuName);
+        
+        // Use PUT if updating an existing menu, POST if creating a new one
+        const method = menuExists ? 'PUT' : 'POST';
+        const url = menuExists ? `/api/menus/${menuName}` : '/api/menus';
+        
+        const response = await fetch(url, {
+            method: method,
             headers: {
                 'Content-Type': 'application/json'
             },
@@ -646,9 +678,34 @@ document.getElementById('load-menu').addEventListener('click', async () => {
             document.getElementById('font-select').value = menuData.font || 'Playfair Display';
             document.getElementById('layout-select').value = menuData.layout || 'single';
             loadFont(menuData.font || 'Playfair Display');
+            
+            // Update configuration options
+            config.showDollarSign = menuData.show_dollar_sign !== undefined ? menuData.show_dollar_sign : true;
+            config.showDecimals = menuData.show_decimals !== undefined ? menuData.show_decimals : true;
+            config.showSectionDividers = menuData.show_section_dividers !== undefined ? menuData.show_section_dividers : true;
+            config.wrapSpecialChars = menuData.wrap_special_chars !== undefined ? menuData.wrap_special_chars : true;
+            
+            // Update configuration controls
+            document.getElementById('show-dollar-sign').checked = config.showDollarSign;
+            document.getElementById('show-decimals').checked = config.showDecimals;
+            document.getElementById('show-dividers').checked = config.showSectionDividers;
+            document.getElementById('wrap-special-chars').checked = config.wrapSpecialChars;
 
             document.getElementById('sections').innerHTML = '';
-            menuData.sections.forEach(section => addSection(section));
+            
+            // Sort sections by position
+            const sortedSections = [...menuData.sections].sort((a, b) => a.position - b.position);
+            sortedSections.forEach(section => {
+                // Sort items by position
+                if (section.items) {
+                    section.items = [...section.items].sort((a, b) => a.position - b.position);
+                    console.log('Loading section:', section.name, 'active:', section.active);
+                    section.items.forEach(item => {
+                        console.log('Loading item:', item.name, 'active:', item.active);
+                    });
+                }
+                addSection(section);
+            });
 
             updatePreview();
         } else {
@@ -1028,9 +1085,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Format price
                     let formattedPrice = '';
                     if (itemPrice) {
-                        const price = parseFloat(itemPrice);
-                        const priceValue = config.showDecimals ? price.toFixed(2) : Math.round(price);
-                        formattedPrice = config.showDollarSign ? `$${priceValue}` : priceValue;
+                        // Check if the price is a valid number
+                        if (!isNaN(parseFloat(itemPrice)) && isFinite(itemPrice)) {
+                            const price = parseFloat(itemPrice);
+                            formattedPrice = config.showDecimals ? price.toFixed(2) : Math.round(price);
+                            // Add dollar sign if configured
+                            if (config.showDollarSign && !itemPrice.includes('$')) {
+                                formattedPrice = '$' + formattedPrice;
+                            }
+                        } else {
+                            // For non-numeric prices, keep as is
+                            formattedPrice = itemPrice;
+                            // Add dollar sign if configured and not already present
+                            if (config.showDollarSign && !itemPrice.includes('$')) {
+                                formattedPrice = '$' + formattedPrice;
+                            }
+                        }
                     }
                     
                     sectionHTML += `

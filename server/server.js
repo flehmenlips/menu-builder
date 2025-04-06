@@ -42,25 +42,85 @@ app.get('/api/menus/:name', async (req, res) => {
 
 app.post('/api/menus', async (req, res) => {
     try {
-        const { name, title, subtitle, font, layout, sections } = req.body;
-        const newMenu = await db.createMenu(name, title, subtitle, font, layout, sections);
+        const { 
+            name, 
+            title, 
+            subtitle, 
+            font, 
+            layout, 
+            sections,
+            showDollarSign,
+            showDecimals,
+            showSectionDividers,
+            wrapSpecialChars
+        } = req.body;
+        
+        // Check if menu already exists
+        const existingMenu = await db.getMenu(name);
+        if (existingMenu) {
+            return res.status(409).json({ error: 'Menu with this name already exists. Use PUT to update existing menus.' });
+        }
+        
+        const newMenu = await db.createMenu(
+            name, 
+            title, 
+            subtitle, 
+            font, 
+            layout,
+            showDollarSign !== undefined ? showDollarSign : true,
+            showDecimals !== undefined ? showDecimals : true,
+            showSectionDividers !== undefined ? showSectionDividers : true,
+            wrapSpecialChars !== undefined ? wrapSpecialChars : true,
+            sections
+        );
         res.status(201).json(newMenu);
     } catch (error) {
-        res.status(500).json({ error: 'Error creating menu' });
+        console.error('Error creating menu:', error);
+        res.status(500).json({ error: 'Error creating menu: ' + error.message });
     }
 });
 
 app.put('/api/menus/:name', async (req, res) => {
     try {
-        const { title, subtitle, font, layout, sections } = req.body;
-        const updatedMenu = await db.updateMenu(req.params.name, title, subtitle, font, layout, sections);
+        const { 
+            title, 
+            subtitle, 
+            font, 
+            layout, 
+            sections,
+            showDollarSign,
+            showDecimals,
+            showSectionDividers,
+            wrapSpecialChars
+        } = req.body;
+        const name = req.params.name;
+        
+        // Check if menu exists
+        const existingMenu = await db.getMenu(name);
+        if (!existingMenu) {
+            return res.status(404).json({ error: 'Menu not found' });
+        }
+        
+        const updatedMenu = await db.updateMenu(
+            name, 
+            title, 
+            subtitle, 
+            font, 
+            layout,
+            showDollarSign !== undefined ? showDollarSign : true,
+            showDecimals !== undefined ? showDecimals : true,
+            showSectionDividers !== undefined ? showSectionDividers : true,
+            wrapSpecialChars !== undefined ? wrapSpecialChars : true,
+            sections
+        );
         if (updatedMenu) {
             res.json(updatedMenu);
         } else {
-            res.status(404).json({ error: 'Menu not found' });
+            res.status(500).json({ error: 'Failed to update menu' });
         }
     } catch (error) {
-        res.status(500).json({ error: 'Error updating menu' });
+        console.error('Error updating menu:', error);
+        res.status(500).json({ error: 'Error updating menu: ' + error.message });
     }
 });
 
