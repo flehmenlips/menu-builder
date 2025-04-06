@@ -9,39 +9,76 @@
 </head>
 <body>
     <div class="container">
-        <h1>Menu Builder</h1>
-        <div class="menu-management">
-            <input type="text" id="menu-name" class="menu-name-input" placeholder="Menu Name (e.g., Spring Menu)">
-            <button class="btn btn-secondary" id="save-menu"><i class="fas fa-save"></i> Save</button>
-            <select id="menu-select" class="menu-select">
-                <option value="">Select a menu</option>
-            </select>
-            <button class="btn btn-secondary" id="load-menu"><i class="fas fa-folder-open"></i> Load</button>
-            <button class="btn btn-secondary" id="delete-menu"><i class="fas fa-trash"></i> Delete</button>
+        <div class="sidebar">
+            <h3>Settings</h3>
+            <div class="sidebar-section">
+                <h4>Display Options</h4>
+                <div class="config-option">
+                    <label>
+                        <input type="checkbox" id="show-dollar-sign" checked>
+                        Show Dollar Sign
+                    </label>
+                </div>
+                <div class="config-option">
+                    <label>
+                        <input type="checkbox" id="show-decimals" checked>
+                        Show Decimals
+                    </label>
+                </div>
+                <div class="config-option">
+                    <label>
+                        <input type="checkbox" id="show-dividers" checked>
+                        Show Section Dividers
+                    </label>
+                </div>
+                <div class="config-option">
+                    <label>
+                        <input type="checkbox" id="wrap-special-chars" checked>
+                        Encode Special Characters
+                    </label>
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <button class="btn sidebar-btn" id="preview-button">
+                    <i class="fas fa-eye"></i> Jump to Preview
+                </button>
+            </div>
         </div>
-        <div class="content">
-            <input type="text" id="title" placeholder="Menu Title">
-            <input type="text" id="subtitle" placeholder="Subtitle">
-            <select id="font-select">
-                <option value="Playfair Display">Playfair Display</option>
-                <option value="Lato">Lato</option>
-                <option value="Roboto">Roboto</option>
-            </select>
-            <select id="layout-select" class="layout-select">
-                <option value="single">Single Column</option>
-                <option value="split">Two Columns (Split)</option>
-                <option value="two-per-page">Two Menus per Page</option>
-            </select>
-            <div id="sections"></div>
-            <button class="btn" id="add-section"><i class="fas fa-plus"></i> Add Section</button>
-            <button class="btn btn-primary" id="generate-pdf"><i class="fas fa-file-pdf"></i> Generate PDF</button>
-            <button class="btn btn-primary" id="generate-html"><i class="fas fa-file-code"></i> Generate HTML</button>
-            <div id="status"></div>
-        </div>
-        <div class="preview">
-            <h2>Preview</h2>
-            <div id="menu-preview"></div>
-            <div id="progress">Progress: 0%</div>
+        <div class="main-content">
+            <h1>Menu Builder</h1>
+            <div class="menu-management">
+                <input type="text" id="menu-name" class="menu-name-input" placeholder="Menu Name (e.g., Spring Menu)">
+                <button class="btn btn-secondary" id="save-menu"><i class="fas fa-save"></i> Save</button>
+                <select id="menu-select" class="menu-select">
+                    <option value="">Select a menu</option>
+                </select>
+                <button class="btn btn-secondary" id="load-menu"><i class="fas fa-folder-open"></i> Load</button>
+                <button class="btn btn-secondary" id="delete-menu"><i class="fas fa-trash"></i> Delete</button>
+            </div>
+            <div class="content">
+                <input type="text" id="title" placeholder="Menu Title">
+                <input type="text" id="subtitle" placeholder="Subtitle">
+                <select id="font-select">
+                    <option value="Playfair Display">Playfair Display</option>
+                    <option value="Lato">Lato</option>
+                    <option value="Roboto">Roboto</option>
+                </select>
+                <select id="layout-select" class="layout-select">
+                    <option value="single">Single Column</option>
+                    <option value="split">Two Columns (Split)</option>
+                    <option value="two-per-page">Two Menus per Page</option>
+                </select>
+                <div id="sections"></div>
+                <button class="btn" id="add-section"><i class="fas fa-plus"></i> Add Section</button>
+                <button class="btn btn-primary" id="generate-pdf"><i class="fas fa-file-pdf"></i> Generate PDF</button>
+                <button class="btn btn-primary" id="generate-html"><i class="fas fa-file-code"></i> Generate HTML</button>
+                <div id="status"></div>
+            </div>
+            <div class="preview">
+                <h2>Preview</h2>
+                <div id="menu-preview"></div>
+                <div id="progress">Progress: 0%</div>
+            </div>
         </div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>

@@ -14,7 +14,7 @@ function loadFont(font) {
 function addSection(data = {}) {
     const sectionId = `section-${sectionCounter++}`;
     const sectionDiv = document.createElement('div');
-    sectionDiv.className = 'section-card';
+    sectionDiv.className = 'section-card section-expanded';
     sectionDiv.id = sectionId;
 
     // Add move buttons
@@ -44,6 +44,15 @@ function addSection(data = {}) {
     nameInput.placeholder = 'Section Name';
     nameInput.value = data.name || '';
 
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'section-toggle-btn';
+    toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
+    toggleBtn.title = 'Toggle Section';
+    toggleBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        toggleSection(sectionId);
+    });
+
     const activeToggle = document.createElement('input');
     activeToggle.type = 'checkbox';
     activeToggle.className = 'active-toggle';
@@ -63,14 +72,19 @@ function addSection(data = {}) {
     header.appendChild(nameInput);
     header.appendChild(activeToggle);
     header.appendChild(activeLabel);
+    header.appendChild(toggleBtn);
     header.appendChild(addItemBtn);
     header.appendChild(deleteSectionBtn);
 
+    const sectionContent = document.createElement('div');
+    sectionContent.className = 'section-content';
+
     const itemsDiv = document.createElement('div');
     itemsDiv.className = 'items';
+    sectionContent.appendChild(itemsDiv);
 
     sectionDiv.appendChild(header);
-    sectionDiv.appendChild(itemsDiv);
+    sectionDiv.appendChild(sectionContent);
 
     document.getElementById('sections').appendChild(sectionDiv);
 
@@ -85,10 +99,31 @@ function addSection(data = {}) {
 
     if (data.items) {
         data.items.forEach(itemData => addItem(sectionId, itemData));
+        console.log('Loading section:', data.name, 'active:', data.active);
+        data.items.forEach(item => {
+            console.log('Loading item:', item.name, 'active:', item.active);
+        });
     }
 
     updateProgress();
     updatePreview();
+}
+
+// Toggle section collapse/expand
+function toggleSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    const isCollapsed = section.classList.contains('section-collapsed');
+    const toggleBtn = section.querySelector('.section-toggle-btn');
+    
+    if (isCollapsed) {
+        section.classList.remove('section-collapsed');
+        section.classList.add('section-expanded');
+        toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
+    } else {
+        section.classList.remove('section-expanded');
+        section.classList.add('section-collapsed');
+        toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
+    }
 }
 
 // Add a new item to a section
@@ -440,16 +475,127 @@ document.getElementById('generate-pdf').addEventListener('click', () => {
     });
 });
 
-// Update the HTML generation
-document.getElementById('generate-html').addEventListener('click', () => {
-    const menuContent = document.getElementById('menu-preview').innerHTML;
+// Generate HTML function
+function generateHTML() {
+    // Get menu data
+    const menuTitle = document.getElementById('title').value;
+    const menuSubtitle = document.getElementById('subtitle').value;
     const selectedFont = document.getElementById('font-select').value;
     const layout = document.getElementById('layout-select').value;
-    const showDollarSign = config.showDollarSign;
-    const showDecimals = config.showDecimals;
-    const showDividers = config.showSectionDividers;
-    const wrapSpecialChars = config.wrapSpecialChars;
-
+    
+    // Get all active sections
+    const sections = Array.from(document.querySelectorAll('.section-card:not(.inactive)'))
+        .map(section => ({
+            element: section,
+            order: Array.from(section.parentNode.children).indexOf(section)
+        }))
+        .sort((a, b) => a.order - b.order)
+        .map(item => item.element);
+        
+    // Create menu content for table-based layout
+    let tableContent = '';
+    
+    // If two-column layout, prepare to split sections
+    let leftColumnSections = [];
+    let rightColumnSections = [];
+    
+    if (layout === 'split') {
+        // For two columns, split sections evenly
+        const midpoint = Math.ceil(sections.length / 2);
+        leftColumnSections = sections.slice(0, midpoint);
+        rightColumnSections = sections.slice(midpoint);
+    } else {
+        // For single column, all sections go in the left column
+        leftColumnSections = sections;
+    }
+    
+    // Generate HTML for sections in table format
+    const generateSectionHTML = (section) => {
+        const sectionName = section.querySelector('.section-name').value;
+        if (!sectionName) return '';
+        
+        let sectionHTML = `
+            <tr>
+                <td colspan="2" style="text-align: center; padding-top: 20px; padding-bottom: 10px;">
+                    <h3 style="margin: 0; font-weight: normal; font-size: 16pt;">${encodeSpecialChars(sectionName)}</h3>
+                </td>
+            </tr>
+        `;
+        
+        // Get all active items
+        const items = Array.from(section.querySelectorAll('.item-card:not(.inactive)'))
+            .map(item => ({
+                element: item,
+                order: Array.from(item.parentNode.children).indexOf(item)
+            }))
+            .sort((a, b) => a.order - b.order)
+            .map(item => item.element);
+            
+        items.forEach(item => {
+            const itemName = item.querySelector('.item-name').value;
+            const itemDesc = item.querySelector('.item-desc').value;
+            const itemPrice = item.querySelector('.item-price').value;
+            
+            if (itemName) {
+                // Format price
+                let formattedPrice = '';
+                if (itemPrice) {
+                    // Check if the price is a valid number
+                    if (!isNaN(parseFloat(itemPrice)) && isFinite(itemPrice)) {
+                        const price = parseFloat(itemPrice);
+                        formattedPrice = config.showDecimals ? price.toFixed(2) : Math.round(price);
+                        // Add dollar sign if configured
+                        if (config.showDollarSign && !itemPrice.includes('$')) {
+                            formattedPrice = '$' + formattedPrice;
+                        }
+                    } else {
+                        // For non-numeric prices, keep as is
+                        formattedPrice = itemPrice;
+                        // Add dollar sign if configured and not already present
+                        if (config.showDollarSign && !itemPrice.includes('$')) {
+                            formattedPrice = '$' + formattedPrice;
+                        }
+                    }
+                }
+                
+                sectionHTML += `
+                    <tr>
+                        <td style="padding: 5px 10px 5px 0; vertical-align: top;">
+                            <strong>${encodeSpecialChars(itemName)}</strong>
+                            ${itemDesc ? `<br><span style="font-size: 10pt;">${encodeSpecialChars(itemDesc)}</span>` : ''}
+                        </td>
+                        <td style="padding: 5px 0; text-align: right; vertical-align: top; white-space: nowrap; width: 50px;">
+                            ${formattedPrice}
+                        </td>
+                    </tr>
+                `;
+            }
+        });
+        
+        // Add section divider if enabled and not the last section
+        if (config.showSectionDividers) {
+            sectionHTML += `
+                <tr>
+                    <td colspan="2" style="padding: 10px 0;">
+                        <hr style="border: none; border-top: 1px dashed #ddd; margin: 0;">
+                    </td>
+                </tr>
+            `;
+        }
+        
+        return sectionHTML;
+    };
+    
+    // Generate HTML for left column
+    let leftColumnHTML = leftColumnSections.map(generateSectionHTML).join('');
+    
+    // Generate HTML for right column if two-column layout
+    let rightColumnHTML = '';
+    if (layout === 'split') {
+        rightColumnHTML = rightColumnSections.map(generateSectionHTML).join('');
+    }
+    
+    // Create the final HTML with table layout
     const html = `
         <!DOCTYPE html>
         <html>
@@ -459,120 +605,117 @@ document.getElementById('generate-html').addEventListener('click', () => {
             <style>
                 @import url('https://fonts.googleapis.com/css2?family=${selectedFont.replace(' ', '+')}&display=swap');
                 
+                @page {
+                    size: letter;
+                    margin: 0.5in;
+                }
+                
                 body {
                     font-family: '${selectedFont}', serif;
                     margin: 0;
                     padding: 0;
-                    background: white;
+                    background-color: white;
                     color: #333;
                 }
-
-                .menu-content {
-                    width: 8.5in;
-                    height: 11in;
+                
+                .menu-container {
+                    max-width: 7.5in;
                     margin: 0 auto;
-                    padding: 0.5in;
-                    box-sizing: border-box;
-                    background: white;
+                    padding: 0;
                 }
-
-                h1, h2, h3 {
+                
+                h1, h2 {
                     text-align: center;
                     margin: 0.25in 0;
                     font-weight: normal;
                 }
-
+                
                 h1 {
                     font-size: 24pt;
-                    margin-bottom: 0.5in;
+                    margin-bottom: 0.1in;
                 }
-
+                
                 h2 {
                     font-size: 18pt;
-                    margin-bottom: 0.25in;
+                    margin-bottom: 0.3in;
                 }
-
-                h3 {
-                    font-size: 16pt;
-                    margin-bottom: 0.25in;
+                
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
                 }
-
-                .menu-section {
-                    break-inside: avoid;
-                    page-break-inside: avoid;
-                    margin-bottom: 0.5in;
+                
+                .menu-content {
+                    width: 100%;
                 }
-
-                .menu-item {
-                    break-inside: avoid;
-                    page-break-inside: avoid;
-                    margin-bottom: 0.25in;
-                }
-
-                .name-price {
-                    display: flex;
-                    justify-content: space-between;
-                    break-inside: avoid;
-                    page-break-inside: avoid;
-                }
-
-                .section-divider {
+                
+                .print-button {
+                    display: block;
+                    margin: 20px auto;
+                    padding: 10px 20px;
+                    background-color: #4CAF50;
+                    color: white;
                     border: none;
-                    border-top: 1px dashed #ddd;
-                    margin: 0.25in 0;
-                    break-inside: avoid;
-                    page-break-inside: avoid;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 16px;
+                    text-align: center;
                 }
-
-                .two-columns {
-                    column-count: 2;
-                    column-gap: 0.5in;
-                    column-fill: balance;
-                    width: 7.5in;
-                    height: 10in;
-                    margin: 0;
-                    padding: 0;
-                    break-inside: avoid;
-                    page-break-inside: avoid;
+                
+                .print-button:hover {
+                    background-color: #45a049;
                 }
-
+                
                 @media print {
+                    .print-button {
+                        display: none;
+                    }
                     body {
-                        margin: 0;
-                        padding: 0;
                         width: 8.5in;
                         height: 11in;
                     }
-
-                    .menu-content {
-                        width: 8.5in;
-                        height: 11in;
-                        margin: 0;
-                        padding: 0.5in;
-                        box-sizing: border-box;
-                    }
-
-                    .two-columns {
-                        column-count: 2 !important;
-                        column-gap: 0.5in !important;
-                        column-fill: balance !important;
-                        width: 7.5in !important;
-                        height: 10in !important;
-                        margin: 0 !important;
-                        padding: 0 !important;
-                    }
-
-                    @page {
-                        size: letter;
-                        margin: 0.5in;
+                    .menu-container {
+                        max-width: 7.5in;
                     }
                 }
             </style>
         </head>
         <body>
-            <div class="menu-content ${layout === 'split' ? 'two-columns' : ''}">
-                ${menuContent}
+            <button class="print-button" onclick="window.print()">Print Menu</button>
+            <div class="menu-container">
+                ${menuTitle ? `<h1>${encodeSpecialChars(menuTitle)}</h1>` : ''}
+                ${menuSubtitle ? `<h2>${encodeSpecialChars(menuSubtitle)}</h2>` : ''}
+                <table class="menu-content">
+                    ${layout === 'split' ? `
+                        <tr>
+                            <td style="width: 50%; padding-right: 0.25in; vertical-align: top;">
+                                <table style="width: 100%;">
+                                    ${leftColumnHTML}
+                                </table>
+                            </td>
+                            <td style="width: 50%; padding-left: 0.25in; vertical-align: top;">
+                                <table style="width: 100%;">
+                                    ${rightColumnHTML}
+                                </table>
+                            </td>
+                        </tr>
+                    ` : `
+                        <tr>
+                            <td style="vertical-align: top;">
+                                <table style="width: 100%;">
+                                    ${leftColumnHTML}
+                                </table>
+                            </td>
+                        </tr>
+                    `}
+                </table>
             </div>
+            <script>
+                // Force load fonts before printing
+                document.fonts.ready.then(function() {
+                    console.log('Fonts loaded');
+                });
+            </script>
         </body>
         </html>
     `;
@@ -587,7 +730,7 @@ document.getElementById('generate-html').addEventListener('click', () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-});
+}
 
 // Save menu
 document.getElementById('save-menu').addEventListener('click', async () => {
@@ -1004,276 +1147,47 @@ function addPrintButton() {
     preview.parentNode.insertBefore(printButton, preview);
 }
 
-// Update the initialization
-document.addEventListener('DOMContentLoaded', () => {
-    updateMenuSelect();
+// Document loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize preview button
+    document.getElementById('preview-button').addEventListener('click', function() {
+        document.querySelector('.preview').scrollIntoView({ behavior: 'smooth' });
+    });
+    
+    // Initialize configuration options from the sidebar
+    document.getElementById('show-dollar-sign').addEventListener('change', (e) => {
+        config.showDollarSign = e.target.checked;
+        updatePreview();
+    });
+
+    document.getElementById('show-decimals').addEventListener('change', (e) => {
+        config.showDecimals = e.target.checked;
+        updatePreview();
+    });
+
+    document.getElementById('show-dividers').addEventListener('change', (e) => {
+        config.showSectionDividers = e.target.checked;
+        updatePreview();
+    });
+
+    document.getElementById('wrap-special-chars').addEventListener('change', (e) => {
+        config.wrapSpecialChars = e.target.checked;
+        updatePreview();
+    });
+    
+    // Add section button
     document.getElementById('add-section').addEventListener('click', () => addSection());
+    
+    // Font and layout event listeners
     document.getElementById('font-select').addEventListener('change', (e) => loadFont(e.target.value));
     document.getElementById('layout-select').addEventListener('change', updatePreview);
-    addConfigurationControls();
+    
+    // Add print button
     addPrintButton();
     
-    // Add HTML generation button
-    const htmlButton = document.createElement('button');
-    htmlButton.id = 'generate-html';
-    htmlButton.className = 'btn btn-primary';
-    htmlButton.textContent = 'Generate HTML';
-    document.querySelector('.container').appendChild(htmlButton);
-
-    // Add event listener for HTML generation with table-based layout
-    htmlButton.addEventListener('click', () => {
-        // Get menu data
-        const menuTitle = document.getElementById('title').value;
-        const menuSubtitle = document.getElementById('subtitle').value;
-        const selectedFont = document.getElementById('font-select').value;
-        const layout = document.getElementById('layout-select').value;
-        
-        // Get all active sections
-        const sections = Array.from(document.querySelectorAll('.section-card:not(.inactive)'))
-            .map(section => ({
-                element: section,
-                order: Array.from(section.parentNode.children).indexOf(section)
-            }))
-            .sort((a, b) => a.order - b.order)
-            .map(item => item.element);
-            
-        // Create menu content for table-based layout
-        let tableContent = '';
-        
-        // If two-column layout, prepare to split sections
-        let leftColumnSections = [];
-        let rightColumnSections = [];
-        
-        if (layout === 'split') {
-            // For two columns, split sections evenly
-            const midpoint = Math.ceil(sections.length / 2);
-            leftColumnSections = sections.slice(0, midpoint);
-            rightColumnSections = sections.slice(midpoint);
-        } else {
-            // For single column, all sections go in the left column
-            leftColumnSections = sections;
-        }
-        
-        // Generate HTML for sections in table format
-        const generateSectionHTML = (section) => {
-            const sectionName = section.querySelector('.section-name').value;
-            if (!sectionName) return '';
-            
-            let sectionHTML = `
-                <tr>
-                    <td colspan="2" style="text-align: center; padding-top: 20px; padding-bottom: 10px;">
-                        <h3 style="margin: 0; font-weight: normal; font-size: 16pt;">${encodeSpecialChars(sectionName)}</h3>
-                    </td>
-                </tr>
-            `;
-            
-            // Get all active items
-            const items = Array.from(section.querySelectorAll('.item-card:not(.inactive)'))
-                .map(item => ({
-                    element: item,
-                    order: Array.from(item.parentNode.children).indexOf(item)
-                }))
-                .sort((a, b) => a.order - b.order)
-                .map(item => item.element);
-                
-            items.forEach(item => {
-                const itemName = item.querySelector('.item-name').value;
-                const itemDesc = item.querySelector('.item-desc').value;
-                const itemPrice = item.querySelector('.item-price').value;
-                
-                if (itemName) {
-                    // Format price
-                    let formattedPrice = '';
-                    if (itemPrice) {
-                        // Check if the price is a valid number
-                        if (!isNaN(parseFloat(itemPrice)) && isFinite(itemPrice)) {
-                            const price = parseFloat(itemPrice);
-                            formattedPrice = config.showDecimals ? price.toFixed(2) : Math.round(price);
-                            // Add dollar sign if configured
-                            if (config.showDollarSign && !itemPrice.includes('$')) {
-                                formattedPrice = '$' + formattedPrice;
-                            }
-                        } else {
-                            // For non-numeric prices, keep as is
-                            formattedPrice = itemPrice;
-                            // Add dollar sign if configured and not already present
-                            if (config.showDollarSign && !itemPrice.includes('$')) {
-                                formattedPrice = '$' + formattedPrice;
-                            }
-                        }
-                    }
-                    
-                    sectionHTML += `
-                        <tr>
-                            <td style="padding: 5px 10px 5px 0; vertical-align: top;">
-                                <strong>${encodeSpecialChars(itemName)}</strong>
-                                ${itemDesc ? `<br><span style="font-size: 10pt;">${encodeSpecialChars(itemDesc)}</span>` : ''}
-                            </td>
-                            <td style="padding: 5px 0; text-align: right; vertical-align: top; white-space: nowrap; width: 50px;">
-                                ${formattedPrice}
-                            </td>
-                        </tr>
-                    `;
-                }
-            });
-            
-            // Add section divider if enabled and not the last section
-            if (config.showSectionDividers) {
-                sectionHTML += `
-                    <tr>
-                        <td colspan="2" style="padding: 10px 0;">
-                            <hr style="border: none; border-top: 1px dashed #ddd; margin: 0;">
-                        </td>
-                    </tr>
-                `;
-            }
-            
-            return sectionHTML;
-        };
-        
-        // Generate HTML for left column
-        let leftColumnHTML = leftColumnSections.map(generateSectionHTML).join('');
-        
-        // Generate HTML for right column if two-column layout
-        let rightColumnHTML = '';
-        if (layout === 'split') {
-            rightColumnHTML = rightColumnSections.map(generateSectionHTML).join('');
-        }
-        
-        // Create the final HTML with table layout
-        const html = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <title>Menu</title>
-                <style>
-                    @import url('https://fonts.googleapis.com/css2?family=${selectedFont.replace(' ', '+')}&display=swap');
-                    
-                    @page {
-                        size: letter;
-                        margin: 0.5in;
-                    }
-                    
-                    body {
-                        font-family: '${selectedFont}', serif;
-                        margin: 0;
-                        padding: 0;
-                        background-color: white;
-                        color: #333;
-                    }
-                    
-                    .menu-container {
-                        max-width: 7.5in;
-                        margin: 0 auto;
-                        padding: 0;
-                    }
-                    
-                    h1, h2 {
-                        text-align: center;
-                        margin: 0.25in 0;
-                        font-weight: normal;
-                    }
-                    
-                    h1 {
-                        font-size: 24pt;
-                        margin-bottom: 0.1in;
-                    }
-                    
-                    h2 {
-                        font-size: 18pt;
-                        margin-bottom: 0.3in;
-                    }
-                    
-                    table {
-                        width: 100%;
-                        border-collapse: collapse;
-                    }
-                    
-                    .menu-content {
-                        width: 100%;
-                    }
-                    
-                    .print-button {
-                        display: block;
-                        margin: 20px auto;
-                        padding: 10px 20px;
-                        background-color: #4CAF50;
-                        color: white;
-                        border: none;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 16px;
-                        text-align: center;
-                    }
-                    
-                    .print-button:hover {
-                        background-color: #45a049;
-                    }
-                    
-                    @media print {
-                        .print-button {
-                            display: none;
-                        }
-                        body {
-                            width: 8.5in;
-                            height: 11in;
-                        }
-                        .menu-container {
-                            max-width: 7.5in;
-                        }
-                    }
-                </style>
-            </head>
-            <body>
-                <button class="print-button" onclick="window.print()">Print Menu</button>
-                <div class="menu-container">
-                    ${menuTitle ? `<h1>${encodeSpecialChars(menuTitle)}</h1>` : ''}
-                    ${menuSubtitle ? `<h2>${encodeSpecialChars(menuSubtitle)}</h2>` : ''}
-                    <table class="menu-content">
-                        ${layout === 'split' ? `
-                            <tr>
-                                <td style="width: 50%; padding-right: 0.25in; vertical-align: top;">
-                                    <table style="width: 100%;">
-                                        ${leftColumnHTML}
-                                    </table>
-                                </td>
-                                <td style="width: 50%; padding-left: 0.25in; vertical-align: top;">
-                                    <table style="width: 100%;">
-                                        ${rightColumnHTML}
-                                    </table>
-                                </td>
-                            </tr>
-                        ` : `
-                            <tr>
-                                <td style="vertical-align: top;">
-                                    <table style="width: 100%;">
-                                        ${leftColumnHTML}
-                                    </table>
-                                </td>
-                            </tr>
-                        `}
-                    </table>
-                </div>
-                <script>
-                    // Force load fonts before printing
-                    document.fonts.ready.then(function() {
-                        console.log('Fonts loaded');
-                    });
-                </script>
-            </body>
-            </html>
-        `;
-
-        // Create a blob and download the file
-        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'menu.html';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    });
+    // Initialize menu select
+    updateMenuSelect();
+    
+    // Add event listener for HTML generation button (already in HTML)
+    document.getElementById('generate-html').addEventListener('click', generateHTML);
 }); 
