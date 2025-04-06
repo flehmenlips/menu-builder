@@ -1,8 +1,16 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
-// Initialize database
-const db = new sqlite3.Database(path.join(__dirname, '../data/menus.db'));
+// Ensure data directory exists
+const dataDir = path.join(__dirname, '..', 'data');
+if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir);
+}
+
+// Connect to the database
+const dbPath = path.join(dataDir, 'menus.db');
+const db = new sqlite3.Database(dbPath);
 
 // Enable foreign keys support
 db.run('PRAGMA foreign_keys = ON');
@@ -141,6 +149,87 @@ db.serialize(() => {
                         });
                     });
                 });
+            });
+        });
+    });
+
+    // Check if spacers table exists
+    db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='spacers'", (err, row) => {
+        if (err) {
+            console.error('Error checking for spacers table:', err);
+            return;
+        }
+
+        // If spacers table doesn't exist, create it
+        if (!row) {
+            console.log('Creating spacers table...');
+            db.run(`CREATE TABLE IF NOT EXISTS spacers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                menu_name TEXT,
+                size TEXT,
+                unit TEXT,
+                position INTEGER,
+                FOREIGN KEY (menu_name) REFERENCES menus(name) ON DELETE CASCADE
+            )`, (err) => {
+                if (err) {
+                    console.error('Error creating spacers table:', err);
+                } else {
+                    console.log('Spacers table created successfully');
+                }
+            });
+        } else {
+            console.log('Spacers table already exists');
+        }
+
+        // Check if wrap_special_chars column exists in menus table
+        db.get("PRAGMA table_info(menus)", (err, rows) => {
+            if (err) {
+                console.error('Error checking menus table schema:', err);
+                return;
+            }
+
+            // Remove wrap_special_chars column from existing menus
+            console.log('Updating menus table to match new schema...');
+            // SQLite doesn't support DROP COLUMN, so we need to recreate the table
+            db.run(`
+                BEGIN TRANSACTION;
+                
+                -- Create new table without wrap_special_chars
+                CREATE TABLE IF NOT EXISTS menus_new (
+                    name TEXT PRIMARY KEY,
+                    title TEXT,
+                    subtitle TEXT,
+                    font TEXT,
+                    layout TEXT,
+                    show_dollar_sign INTEGER DEFAULT 1,
+                    show_decimals INTEGER DEFAULT 1,
+                    show_section_dividers INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                
+                -- Copy data from old table to new table
+                INSERT INTO menus_new(name, title, subtitle, font, layout, 
+                      show_dollar_sign, show_decimals, show_section_dividers, 
+                      created_at, updated_at)
+                SELECT name, title, subtitle, font, layout, 
+                      show_dollar_sign, show_decimals, show_section_dividers, 
+                      created_at, updated_at 
+                FROM menus;
+                
+                -- Drop old table
+                DROP TABLE menus;
+                
+                -- Rename new table to old table name
+                ALTER TABLE menus_new RENAME TO menus;
+                
+                COMMIT;
+            `, (err) => {
+                if (err) {
+                    console.error('Error updating menus table:', err);
+                } else {
+                    console.log('Menus table updated successfully');
+                }
             });
         });
     });

@@ -42,85 +42,62 @@ app.get('/api/menus/:name', async (req, res) => {
 
 app.post('/api/menus', async (req, res) => {
     try {
-        const { 
+        const { name, title, subtitle, font, layout, showDollarSign, showDecimals, showSectionDividers, elements } = req.body;
+        
+        if (!name) {
+            return res.status(400).json({ error: 'Menu name is required' });
+        }
+        
+        // Check if menu already exists
+        const existingMenu = await db.getMenu(name);
+        if (existingMenu) {
+            return res.status(409).json({ error: 'Menu name already exists' });
+        }
+        
+        const menu = await db.createMenu(
             name, 
             title, 
             subtitle, 
             font, 
             layout, 
-            sections,
-            showDollarSign,
-            showDecimals,
-            showSectionDividers,
-            wrapSpecialChars
-        } = req.body;
-        
-        // Check if menu already exists
-        const existingMenu = await db.getMenu(name);
-        if (existingMenu) {
-            return res.status(409).json({ error: 'Menu with this name already exists. Use PUT to update existing menus.' });
-        }
-        
-        const newMenu = await db.createMenu(
-            name, 
-            title, 
-            subtitle, 
-            font, 
-            layout,
-            showDollarSign !== undefined ? showDollarSign : true,
-            showDecimals !== undefined ? showDecimals : true,
-            showSectionDividers !== undefined ? showSectionDividers : true,
-            wrapSpecialChars !== undefined ? wrapSpecialChars : true,
-            sections
+            showDollarSign, 
+            showDecimals, 
+            showSectionDividers, 
+            elements
         );
-        res.status(201).json(newMenu);
+        
+        res.status(201).json(menu);
     } catch (error) {
         console.error('Error creating menu:', error);
-        res.status(500).json({ error: 'Error creating menu: ' + error.message });
+        res.status(500).json({ error: 'Failed to create menu' });
     }
 });
 
 app.put('/api/menus/:name', async (req, res) => {
     try {
-        const { 
+        const { title, subtitle, font, layout, showDollarSign, showDecimals, showSectionDividers, elements } = req.body;
+        const menuName = req.params.name;
+        
+        const menu = await db.updateMenu(
+            menuName, 
             title, 
             subtitle, 
             font, 
             layout, 
-            sections,
-            showDollarSign,
-            showDecimals,
-            showSectionDividers,
-            wrapSpecialChars
-        } = req.body;
-        const name = req.params.name;
+            showDollarSign, 
+            showDecimals, 
+            showSectionDividers, 
+            elements
+        );
         
-        // Check if menu exists
-        const existingMenu = await db.getMenu(name);
-        if (!existingMenu) {
+        if (!menu) {
             return res.status(404).json({ error: 'Menu not found' });
         }
         
-        const updatedMenu = await db.updateMenu(
-            name, 
-            title, 
-            subtitle, 
-            font, 
-            layout,
-            showDollarSign !== undefined ? showDollarSign : true,
-            showDecimals !== undefined ? showDecimals : true,
-            showSectionDividers !== undefined ? showSectionDividers : true,
-            wrapSpecialChars !== undefined ? wrapSpecialChars : true,
-            sections
-        );
-        if (updatedMenu) {
-            res.json(updatedMenu);
-        } else {
-            res.status(500).json({ error: 'Failed to update menu' });
-        }
+        res.json(menu);
     } catch (error) {
         console.error('Error updating menu:', error);
-        res.status(500).json({ error: 'Error updating menu: ' + error.message });
+        res.status(500).json({ error: 'Failed to update menu' });
     }
 });
 

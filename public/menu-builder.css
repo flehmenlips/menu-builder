@@ -787,4 +787,77 @@ button:only-child .fas {
     .active-toggle-container {
         margin-right: auto;
     }
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+/* Spacer styling */
+.spacer-card {
+    background: #fff;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    position: relative;
+}
+
+.spacer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.spacer-size {
+    width: 100px;
+    margin: 0;
+}
+
+.spacer-unit-select {
+    width: 80px;
+    margin: 0;
+}
+
+.spacer-preview {
+    background-color: #f8f9fa;
+    border: 1px dashed #dee2e6;
+    width: 100%;
+    border-radius: 4px;
+}
+
+.spacer-card .controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Move buttons for spacer */
+.spacer-card .move-buttons {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    padding: 5px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px 0 0 4px;
+    z-index: 1;
+}
+
+/* Preview spacer */
+.menu-spacer {
+    width: 100%;
+    margin: 0;
+    page-break-inside: avoid;
+    break-inside: avoid;
 } 

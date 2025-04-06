@@ -31,12 +31,6 @@
                         Show Section Dividers
                     </label>
                 </div>
-                <div class="config-option">
-                    <label>
-                        <input type="checkbox" id="wrap-special-chars" checked>
-                        Encode Special Characters
-                    </label>
-                </div>
             </div>
             <div class="sidebar-section">
                 <button class="btn sidebar-btn" id="preview-button">
@@ -69,7 +63,10 @@
                     <option value="two-per-page">Two Menus per Page</option>
                 </select>
                 <div id="sections"></div>
-                <button class="btn" id="add-section"><i class="fas fa-plus"></i> Add Section</button>
+                <div class="button-group">
+                    <button class="btn" id="add-section"><i class="fas fa-plus"></i> Add Section</button>
+                    <button class="btn" id="add-spacer"><i class="fas fa-arrows-alt-v"></i> Add Spacer</button>
+                </div>
                 <button class="btn btn-primary" id="generate-pdf"><i class="fas fa-file-pdf"></i> Generate PDF</button>
                 <button class="btn btn-primary" id="generate-html"><i class="fas fa-file-code"></i> Generate HTML</button>
                 <div id="status"></div>
