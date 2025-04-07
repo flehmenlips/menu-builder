@@ -7,9 +7,13 @@ const multer = require('multer');
 const cookieParser = require('cookie-parser');
 const db = require('./database');
 const auth = require('./auth');
+const jwt = require('jsonwebtoken');
+
+// Configuration
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here';
+const PORT = process.env.PORT || 4000;
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, '../public/uploads/logos');
@@ -116,29 +120,41 @@ app.get('/menu-builder', (req, res) => {
 // Auth Routes
 app.post('/api/auth/register', async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { name, email, password } = req.body;
         
         if (!email || !password) {
             return res.status(400).json({ error: 'Email and password are required' });
         }
         
-        const user = await auth.registerUser(email, password);
+        // Register user
+        const user = await auth.registerUser(name || email.split('@')[0], email, password);
         
-        res.status(201).json({
-            message: 'User registered successfully',
+        // Generate JWT
+        const token = jwt.sign(
+            { userId: user.id, email: user.email },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+        
+        // Set secure cookie with the token
+        res.cookie('auth_token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        });
+        
+        // Send response
+        res.json({
             user: {
                 id: user.id,
+                name: user.name,
                 email: user.email
-            }
+            },
+            token
         });
     } catch (error) {
         console.error('Registration error:', error);
-        
-        if (error.message === 'User already exists') {
-            return res.status(409).json({ error: 'User already exists' });
-        }
-        
-        res.status(500).json({ error: 'Registration failed' });
+        res.status(500).json({ error: error.message || 'Registration failed' });
     }
 });
 

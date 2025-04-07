@@ -4,20 +4,16 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
-// Initialize database
-const db = new sqlite3.Database(path.join(__dirname, '../data/menus.db'));
+// Set up database connection
+const db = new sqlite3.Database(path.join(__dirname, 'data/menus.db'));
 
-// JWT secret for signing tokens
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret'; // In production, use environment variable
-
-// Salt rounds for bcrypt
-const SALT_ROUNDS = 10;
-
-// Token expiration (24 hours)
+// Configuration
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here';
+const BCRYPT_SALT_ROUNDS = 10;
 const TOKEN_EXPIRATION = '24h';
 
 // Register a new user
-const registerUser = async (email, password) => {
+const registerUser = async (name, email, password) => {
     return new Promise(async (resolve, reject) => {
         try {
             // Check if user already exists
@@ -31,12 +27,12 @@ const registerUser = async (email, password) => {
                 }
                 
                 // Hash password
-                const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+                const passwordHash = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
                 
                 // Insert new user
                 db.run(
-                    'INSERT INTO users (email, password_hash) VALUES (?, ?)',
-                    [email, passwordHash],
+                    'INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)',
+                    [name, email, passwordHash],
                     function(err) {
                         if (err) {
                             return reject(err);
@@ -55,6 +51,7 @@ const registerUser = async (email, password) => {
                                 
                                 resolve({
                                     id: userId,
+                                    name,
                                     email
                                 });
                             }
@@ -109,7 +106,7 @@ const loginUser = async (email, password) => {
                 
                 // Store session in database
                 db.run(
-                    'INSERT INTO sessions (user_id, session_token, expires_at) VALUES (?, ?, ?)',
+                    'INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?)',
                     [user.id, sessionToken, expiresAt.toISOString()],
                     (err) => {
                         if (err) {
@@ -243,7 +240,7 @@ const verifyToken = (token) => {
 const verifySession = (sessionToken) => {
     return new Promise((resolve, reject) => {
         db.get(
-            'SELECT * FROM sessions WHERE session_token = ? AND expires_at > CURRENT_TIMESTAMP',
+            'SELECT * FROM sessions WHERE token = ? AND expires_at > CURRENT_TIMESTAMP',
             [sessionToken],
             (err, session) => {
                 if (err) {
@@ -260,15 +257,15 @@ const verifySession = (sessionToken) => {
     });
 };
 
-// Log out user (invalidate session)
+// Logout user
 const logoutUser = (sessionToken) => {
     return new Promise((resolve, reject) => {
-        db.run('DELETE FROM sessions WHERE session_token = ?', [sessionToken], function(err) {
+        db.run('DELETE FROM sessions WHERE token = ?', [sessionToken], function(err) {
             if (err) {
                 return reject(err);
             }
             
-            resolve({ success: true });
+            resolve({ success: true, message: 'Logged out successfully' });
         });
     });
 };

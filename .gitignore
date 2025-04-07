@@ -32,4 +32,7 @@ logs
 
 # Distribution / packaging
 dist/
-build/ 
+build/
+
+# Server data
+server/data/ 
