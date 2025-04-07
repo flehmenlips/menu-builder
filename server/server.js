@@ -5,22 +5,31 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const cookieParser = require('cookie-parser');
-const db = require('./database');
+const dbSetup = require('./database');
+const { db } = require('./database');
 const auth = require('./auth');
 const admin = require('./admin');
 const content = require('./content');
 const jwt = require('jsonwebtoken');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcrypt');
+require('dotenv').config();
+const dbFunctions = require('./database');
+
+// --- DIAGNOSTIC LOGGING --- 
+console.log("\n--- DEBUG: Checking imported 'db' object ---");
+console.log(`Type of imported db: ${typeof db}`);
+console.log(`Does imported db have .get method? ${typeof db?.get === 'function'}`);
+console.log(`Does imported db have .run method? ${typeof db?.run === 'function'}`);
+console.log(`Does imported db have .all method? ${typeof db?.all === 'function'}`);
+console.log("--- END DEBUG ---\n");
+// --- END DIAGNOSTIC LOGGING ---
 
 // Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'menu-builder-secret-key';
 const PORT = process.env.PORT || 4000;
 
 const app = express();
-
-// Initialize database connection
-const dbConnection = new sqlite3.Database(path.join(__dirname, 'data/menus.db'));
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
@@ -184,8 +193,8 @@ app.get('/api/auth/verify', async (req, res) => {
 
 // Check if admin exists (needed before login/setup)
 app.get('/api/admin/exists', (req, res) => {
-    // Reverted to direct DB query as auth.adminExists doesn't exist
-    dbConnection.get('SELECT COUNT(*) as count FROM users WHERE is_admin = 1', [], (err, result) => {
+    // Use the imported db connection object
+    db.get('SELECT COUNT(*) as count FROM users WHERE is_admin = 1', [], (err, result) => {
         if (err) {
             console.error('Error checking if admin exists:', err);
             return res.status(500).json({ error: 'Server error checking admin status' });
@@ -208,7 +217,7 @@ app.post('/api/admin/login', (req, res) => {
     }
     
     // First check if user exists
-    dbConnection.get('SELECT * FROM users WHERE email = ?', [email], (err, user) => {
+    db.get('SELECT * FROM users WHERE email = ?', [email], (err, user) => {
         if (err) {
             console.error('Error during admin login:', err);
             return res.status(500).json({ error: 'Server error during login' });
@@ -449,8 +458,8 @@ app.post('/api/profile/logo', authenticateUser, upload.single('logo'), async (re
 // Existing API Routes (now with authentication where needed)
 app.get('/api/menus', authenticateUser, async (req, res) => {
     try {
-        // Get menus only for the authenticated user
-        const menus = await db.getMenusByUserId(req.user.id);
+        // Use the specific function exported from database.js
+        const menus = await dbFunctions.getMenusByUserId(req.user.id);
         res.json(menus);
     } catch (error) {
         console.error('Error fetching menus for user:', req.user.id, error);
@@ -459,33 +468,40 @@ app.get('/api/menus', authenticateUser, async (req, res) => {
 });
 
 app.get('/api/menus/:name', authenticateUser, async (req, res) => {
+    const menuName = req.params.name;
+    const userId = req.user.id;
+    console.log(`GET /api/menus/:name - Received request for menu: "${menuName}" by user: ${userId}`); // Log start
     try {
-        const menuName = req.params.name;
-        // Fetch the menu and ensure it belongs to the user
-        const menu = await db.getMenuByNameAndUser(menuName, req.user.id);
+        console.log(` -> Calling dbFunctions.getMenuByNameAndUser("${menuName}", ${userId})`);
+        const menu = await dbFunctions.getMenuByNameAndUser(menuName, userId);
+        console.log(` -> dbFunctions.getMenuByNameAndUser returned: ${menu ? 'Menu found' : 'Menu NOT found'}`);
+        
         if (!menu) {
-            // Return 404 whether menu doesn't exist or doesn't belong to user
+            console.log(` <- Responding 404 Not Found`);
             return res.status(404).json({ error: 'Menu not found' });
         }
+        
+        console.log(` <- Responding 200 OK with menu data`);
         res.json(menu);
     } catch (error) {
-        console.error('Error fetching menu:', req.params.name, 'for user:', req.user.id, error);
-        res.status(500).json({ error: 'Error fetching menu' });
+        // Log the detailed error on the server
+        console.error(`*** ERROR in GET /api/menus/:name for menu "${menuName}", user ${userId}:`, error);
+        res.status(500).json({ error: 'Error fetching menu data' }); // Generic error to client
     }
 });
 
 app.delete('/api/menus/:name', authenticateUser, async (req, res) => {
     try {
         const menuName = req.params.name;
-        // First, check if the menu exists and belongs to the user
-        const menu = await db.getMenuByNameAndUser(menuName, req.user.id);
+        // Use the specific function exported from database.js
+        const menu = await dbFunctions.getMenuByNameAndUser(menuName, req.user.id);
         
         if (!menu) {
             return res.status(404).json({ error: 'Menu not found or not authorized' });
         }
         
         // If check passes, proceed with deletion
-        await db.deleteMenuByNameAndUser(menuName, req.user.id);
+        await dbFunctions.deleteMenuByNameAndUser(menuName, req.user.id);
         res.json({ message: 'Menu deleted successfully' });
     } catch (error) {
         console.error('Error deleting menu:', req.params.name, 'for user:', req.user.id, error);
@@ -523,6 +539,12 @@ app.post('/api/upload-logo', upload.single('logo'), (req, res) => {
 // Secure menu routes with authentication
 app.post('/api/menus', authenticateUser, async (req, res) => {
     try {
+        // Use the specific function exported from database.js
+        const existingMenu = await dbFunctions.getMenu(name);
+        if (existingMenu) {
+            return res.status(409).json({ error: 'Menu name already exists' });
+        }
+        
         // Add user_id to the menu data
         req.body.user_id = req.user.id;
         
@@ -538,12 +560,6 @@ app.post('/api/menus', authenticateUser, async (req, res) => {
             return res.status(400).json({ error: 'Menu name is required' });
         }
         
-        // Check if menu already exists
-        const existingMenu = await db.getMenu(name);
-        if (existingMenu) {
-            return res.status(409).json({ error: 'Menu name already exists' });
-        }
-        
         // Validate input data with safe defaults
         if (!elements) {
             console.warn(`Creating menu "${name}" with missing elements`);
@@ -556,7 +572,7 @@ app.post('/api/menus', authenticateUser, async (req, res) => {
         }
         
         try {
-            const menu = await db.createMenu(
+            const menu = await dbFunctions.createMenu(
                 name, 
                 title || '', 
                 subtitle || '', 
@@ -590,8 +606,8 @@ app.post('/api/menus', authenticateUser, async (req, res) => {
 app.put('/api/menus/:name', authenticateUser, async (req, res) => {
     try {
         const menuName = req.params.name;
-        // First, check if the menu exists and belongs to the user
-        const menu = await db.getMenuByNameAndUser(menuName, req.user.id);
+        // Use the specific function exported from database.js
+        const menu = await dbFunctions.getMenuByNameAndUser(menuName, req.user.id);
 
         if (!menu) {
              return res.status(404).json({ error: 'Menu not found or not authorized' });
@@ -612,7 +628,7 @@ app.put('/api/menus/:name', authenticateUser, async (req, res) => {
         }
         
         // Proceed with the update, ensuring db.updateMenu uses user_id check
-        const updatedMenu = await db.updateMenu(
+        const updatedMenu = await dbFunctions.updateMenu(
             menuName, // Original name to find the menu
             req.user.id, // User ID for authorization check
             {
@@ -642,20 +658,20 @@ app.post('/api/menus/:name/duplicate', authenticateUser, async (req, res) => {
             return res.status(400).json({ error: 'New menu name is required' });
         }
         
-        // Check if source menu exists AND belongs to user
-        const sourceMenu = await db.getMenuByNameAndUser(sourceName, req.user.id);
+        // Use the specific function exported from database.js
+        const sourceMenu = await dbFunctions.getMenuByNameAndUser(sourceName, req.user.id);
         if (!sourceMenu) {
             return res.status(404).json({ error: 'Source menu not found or not authorized' });
         }
         
         // Check if target name already exists FOR THIS USER
-        const existingMenu = await db.getMenuByNameAndUser(newName, req.user.id);
+        const existingMenu = await dbFunctions.getMenuByNameAndUser(newName, req.user.id);
         if (existingMenu) {
             return res.status(409).json({ error: 'New menu name already exists for this user' });
         }
         
         // Pass user ID to the duplicate function
-        const newMenu = await db.duplicateMenu(sourceName, newName, req.user.id);
+        const newMenu = await dbFunctions.duplicateMenu(sourceName, newName, req.user.id);
         res.status(201).json(newMenu);
     } catch (error) {
         console.error('Error duplicating menu:', req.params.name, 'for user:', req.user.id, error);
@@ -677,7 +693,7 @@ app.post('/api/admin/setup', (req, res) => {
   }
   
   // Check if admin already exists
-  dbConnection.get('SELECT COUNT(*) as count FROM users WHERE is_admin = 1', [], (err, result) => {
+  db.get('SELECT COUNT(*) as count FROM users WHERE is_admin = 1', [], (err, result) => {
     if (err) {
       console.error('Error checking for existing admin:', err);
       return res.status(500).json({ error: 'Server error' });
@@ -689,7 +705,7 @@ app.post('/api/admin/setup', (req, res) => {
     
     // Check setup key if provided
     if (setupKey) {
-      dbConnection.get('SELECT value FROM site_settings WHERE name = "admin_setup_key"', [], (err, setting) => {
+      db.get('SELECT value FROM site_settings WHERE name = "admin_setup_key"', [], (err, setting) => {
         if (err) {
           console.error('Error checking setup key:', err);
           return res.status(500).json({ error: 'Server error' });
@@ -723,7 +739,7 @@ app.post('/api/admin/setup', (req, res) => {
         VALUES (?, ?, ?, 1, datetime('now'))
       `;
       
-      dbConnection.run(sql, [name, email, hash], function(err) {
+      db.run(sql, [name, email, hash], function(err) {
         if (err) {
           console.error('Error creating admin account:', err);
           return res.status(500).json({ error: 'Server error during account creation' });
@@ -957,7 +973,7 @@ app.delete('/api/admin/plans/:planId', authorizeAdmin, async (req, res) => {
 
 // Admin settings
 app.get('/api/admin/settings', authorizeAdmin, (req, res) => {
-  dbConnection.all('SELECT * FROM site_settings ORDER BY setting_group, setting_key', [], (err, rows) => {
+  db.all('SELECT * FROM site_settings ORDER BY setting_group, setting_key', [], (err, rows) => {
     if (err) {
       console.error('Error fetching settings:', err);
       return res.status(500).json({ error: 'Failed to fetch settings' });
@@ -971,13 +987,13 @@ app.post('/api/admin/settings', authorizeAdmin, (req, res) => {
   const settings = req.body;
   
   // Start a transaction to update all settings
-  dbConnection.run('BEGIN TRANSACTION', err => {
+  db.run('BEGIN TRANSACTION', err => {
     if (err) {
       console.error('Error starting transaction:', err);
       return res.status(500).json({ error: 'Server error' });
     }
     
-    const stmt = dbConnection.prepare(`
+    const stmt = db.prepare(`
       UPDATE site_settings 
       SET setting_value = ?, updated_at = datetime('now')
       WHERE setting_key = ?
@@ -998,14 +1014,14 @@ app.post('/api/admin/settings', authorizeAdmin, (req, res) => {
     stmt.finalize();
     
     if (hasError) {
-      dbConnection.run('ROLLBACK');
+      db.run('ROLLBACK');
       return res.status(500).json({ error: 'Failed to update one or more settings' });
     }
     
-    dbConnection.run('COMMIT', err => {
+    db.run('COMMIT', err => {
       if (err) {
         console.error('Error committing transaction:', err);
-        dbConnection.run('ROLLBACK');
+        db.run('ROLLBACK');
         return res.status(500).json({ error: 'Failed to save settings' });
       }
       
@@ -1022,8 +1038,8 @@ app.post('/api/admin/settings/logo', authorizeAdmin, upload.single('logo'), (req
   
   const logoPath = `/uploads/${req.file.filename}`;
   
-  // Update the logo_path setting
-  dbConnection.run(`
+  // Use the imported db connection object
+  db.run(`
     UPDATE site_settings 
     SET setting_value = ?, updated_at = datetime('now')
     WHERE setting_key = 'logo_path'
@@ -1035,7 +1051,7 @@ app.post('/api/admin/settings/logo', authorizeAdmin, upload.single('logo'), (req
     
     // If the setting doesn't exist, create it
     if (this.changes === 0) {
-      dbConnection.run(`
+      db.run(`
         INSERT INTO site_settings (setting_key, setting_value, setting_group, created_at, updated_at)
         VALUES ('logo_path', ?, 'appearance', datetime('now'), datetime('now'))
       `, [logoPath], err => {
@@ -1054,8 +1070,8 @@ app.post('/api/admin/settings/logo', authorizeAdmin, upload.single('logo'), (req
 
 // Delete logo
 app.delete('/api/admin/settings/logo', authorizeAdmin, (req, res) => {
-  // Get current logo path
-  dbConnection.get('SELECT setting_value FROM site_settings WHERE setting_key = ?', ['logo_path'], (err, row) => {
+  // Use the imported db connection object
+  db.get('SELECT setting_value FROM site_settings WHERE setting_key = ?', ['logo_path'], (err, row) => {
     if (err) {
       console.error('Error getting logo path:', err);
       return res.status(500).json({ error: 'Failed to get logo path' });
@@ -1076,7 +1092,7 @@ app.delete('/api/admin/settings/logo', authorizeAdmin, (req, res) => {
       }
       
       // Update setting to empty
-      dbConnection.run(`
+      db.run(`
         UPDATE site_settings 
         SET setting_value = '', updated_at = datetime('now')
         WHERE setting_key = 'logo_path'
@@ -1111,8 +1127,8 @@ app.post('/api/admin/settings/favicon', authorizeAdmin, upload.single('favicon')
       return res.status(500).json({ error: 'Failed to update favicon' });
     }
     
-    // Update the favicon_path setting
-    dbConnection.run(`
+    // Use the imported db connection object
+    db.run(`
       UPDATE site_settings 
       SET setting_value = ?, updated_at = datetime('now')
       WHERE setting_key = 'favicon_path'
@@ -1124,7 +1140,7 @@ app.post('/api/admin/settings/favicon', authorizeAdmin, upload.single('favicon')
       
       // If the setting doesn't exist, create it
       if (this.changes === 0) {
-        dbConnection.run(`
+        db.run(`
           INSERT INTO site_settings (setting_key, setting_value, setting_group, created_at, updated_at)
           VALUES ('favicon_path', ?, 'appearance', datetime('now'), datetime('now'))
         `, [faviconPath], err => {
@@ -1305,7 +1321,7 @@ app.post('/api/admin/content/upload-image', authorizeAdmin, contentImageUpload.s
 // **** CONTENT MANAGEMENT ROUTES ****
 // Get all content blocks
 app.get('/api/admin/content', authenticateUser, authorizeAdmin, (req, res) => {
-    dbConnection.all('SELECT * FROM content_blocks ORDER BY section, order_index', [], (err, rows) => {
+    db.all('SELECT * FROM content_blocks ORDER BY section, order_index', [], (err, rows) => {
         if (err) {
             console.error('Error fetching content blocks:', err);
             return res.status(500).json({ error: 'Failed to fetch content blocks' });
@@ -1333,7 +1349,7 @@ app.get('/api/admin/content', authenticateUser, authorizeAdmin, (req, res) => {
 app.get('/api/admin/content/section/:section', authenticateUser, authorizeAdmin, (req, res) => {
     const { section } = req.params;
     
-    dbConnection.all('SELECT * FROM content_blocks WHERE section = ? ORDER BY order_index', [section], (err, rows) => {
+    db.all('SELECT * FROM content_blocks WHERE section = ? ORDER BY order_index', [section], (err, rows) => {
         if (err) {
             console.error('Error fetching content blocks by section:', err);
             return res.status(500).json({ error: 'Failed to fetch content blocks' });
@@ -1359,7 +1375,7 @@ app.get('/api/admin/content/section/:section', authenticateUser, authorizeAdmin,
 
 // Get all distinct sections
 app.get('/api/admin/content/sections', authenticateUser, authorizeAdmin, (req, res) => {
-    dbConnection.all('SELECT DISTINCT section FROM content_blocks ORDER BY section', [], (err, rows) => {
+    db.all('SELECT DISTINCT section FROM content_blocks ORDER BY section', [], (err, rows) => {
         if (err) {
             console.error('Error fetching content sections:', err);
             return res.status(500).json({ error: 'Failed to fetch content sections' });
@@ -1374,7 +1390,7 @@ app.get('/api/admin/content/sections', authenticateUser, authorizeAdmin, (req, r
 app.get('/api/admin/content/:id', authenticateUser, authorizeAdmin, (req, res) => {
     const { id } = req.params;
     
-    dbConnection.get('SELECT * FROM content_blocks WHERE id = ?', [id], (err, row) => {
+    db.get('SELECT * FROM content_blocks WHERE id = ?', [id], (err, row) => {
         if (err) {
             console.error('Error fetching content block:', err);
             return res.status(500).json({ error: 'Failed to fetch content block' });
@@ -1409,7 +1425,7 @@ app.post('/api/admin/content', authenticateUser, authorizeAdmin, (req, res) => {
     }
     
     // Check if identifier already exists
-    dbConnection.get('SELECT id FROM content_blocks WHERE identifier = ?', [identifier], (err, row) => {
+    db.get('SELECT id FROM content_blocks WHERE identifier = ?', [identifier], (err, row) => {
         if (err) {
             console.error('Error checking content identifier:', err);
             return res.status(500).json({ error: 'Failed to check content identifier' });
@@ -1428,7 +1444,7 @@ app.post('/api/admin/content', authenticateUser, authorizeAdmin, (req, res) => {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
         `;
         
-        dbConnection.run(sql, [
+        db.run(sql, [
             identifier,
             title,
             content || '',
@@ -1470,7 +1486,7 @@ app.put('/api/admin/content/:id', authenticateUser, authorizeAdmin, (req, res) =
         WHERE id = ?
     `;
     
-    dbConnection.run(sql, [
+    db.run(sql, [
         title,
         content || '',
         content_type || 'text',
@@ -1497,7 +1513,7 @@ app.put('/api/admin/content/:id', authenticateUser, authorizeAdmin, (req, res) =
 app.delete('/api/admin/content/:id', authenticateUser, authorizeAdmin, (req, res) => {
     const { id } = req.params;
     
-    dbConnection.run('DELETE FROM content_blocks WHERE id = ?', [id], function(err) {
+    db.run('DELETE FROM content_blocks WHERE id = ?', [id], function(err) {
         if (err) {
             console.error('Error deleting content block:', err);
             return res.status(500).json({ error: 'Failed to delete content block' });
@@ -1531,7 +1547,7 @@ app.post('/api/admin/content/upload-image', authenticateUser, authorizeAdmin, up
 app.get('/api/content/:identifier', (req, res) => {
     const { identifier } = req.params;
     
-    dbConnection.get('SELECT * FROM content_blocks WHERE identifier = ? AND is_active = 1', [identifier], (err, row) => {
+    db.get('SELECT * FROM content_blocks WHERE identifier = ? AND is_active = 1', [identifier], (err, row) => {
         if (err) {
             console.error('Error fetching content block:', err);
             return res.status(500).json({ error: 'Failed to fetch content' });
@@ -1560,7 +1576,7 @@ app.get('/api/content/:identifier', (req, res) => {
 app.get('/api/content/section/:section', (req, res) => {
     const section = req.params.section;
     
-    dbConnection.all('SELECT * FROM content_blocks WHERE section = ?', [section], (err, rows) => {
+    db.all('SELECT * FROM content_blocks WHERE section = ?', [section], (err, rows) => {
         if (err) {
             console.error('Error fetching content:', err);
             return res.status(500).json({ error: 'Failed to fetch content' });
@@ -1574,7 +1590,7 @@ app.get('/api/content/section/:section', (req, res) => {
 app.get('/api/content/:identifier', (req, res) => {
     const identifier = req.params.identifier;
     
-    dbConnection.get('SELECT * FROM content_blocks WHERE identifier = ?', [identifier], (err, row) => {
+    db.get('SELECT * FROM content_blocks WHERE identifier = ?', [identifier], (err, row) => {
         if (err) {
             console.error('Error fetching content:', err);
             return res.status(500).json({ error: 'Failed to fetch content' });
@@ -1604,7 +1620,7 @@ app.get('/api/user/dashboard-stats', async (req, res) => {
 
         // Fetch total menus count for the user
         const menuCountResult = await new Promise((resolve, reject) => {
-            dbConnection.get('SELECT COUNT(*) as count FROM menus WHERE user_id = ?', [userId], (err, row) => {
+            db.get('SELECT COUNT(*) as count FROM menus WHERE user_id = ?', [userId], (err, row) => {
                 if (err) reject(err);
                 else resolve(row);
             });

@@ -18,63 +18,79 @@ const contentSections = document.querySelectorAll('.content-section');
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('User Portal DOM Loaded');
-    let loggedIn = false;
-    const token = localStorage.getItem('userToken');
-
-    if (token) {
-        console.log('Token found, verifying...');
-        loggedIn = await verifyUserToken(token);
-    }
+    console.log('User Portal DOM Loaded - Attempting Auth Verification...');
+    // Don't check localStorage['userToken']. Directly try to verify via cookie.
+    const loggedIn = await verifyUserToken(); // Await the verification result
 
     if (loggedIn) {
-        console.log('Post-verification: Logged In. Initializing navigation.');
-        initUserNavigation();
+        console.log('User Portal: Verified. Initializing navigation and loading section.');
+        initUserNavigation(); // Initialize navigation
         
-        // --- Temporarily comment out programmatic click --- 
-        /* 
+        // Determine initial section from hash or default to dashboard
         const initialSectionId = window.location.hash.substring(1) || 'dashboard';
+        console.log(`User Portal: Initial section requested: ${initialSectionId}`);
+        
+        // Find the link and click it to load the section (or handle directly)
         const initialLink = document.querySelector(`.user-nav .nav-link[data-section="${initialSectionId}"]`);
         if (initialLink) {
-             console.log(`Triggering initial section load: ${initialSectionId}`);
-            initialLink.click(); // This will call showSection -> loadXData
+            console.log(`User Portal: Clicking initial link for ${initialSectionId}`);
+            initialLink.click(); // Let the nav handler load the section
         } else {
-            // Fallback if hash is invalid
-             console.log(`Initial hash invalid, loading dashboard.`);
-             const dashboardLink = document.querySelector('.user-nav .nav-link[data-section="dashboard"]');
-             if(dashboardLink) dashboardLink.click();
-        } 
-        */
-       // Instead, manually ensure the default dashboard section is active 
-       // and call its load function directly, avoiding the extra click.
-       const dashboardSection = document.getElementById('dashboard-section');
-       if (dashboardSection) {
-            console.log("Manually activating dashboard section and loading data.");
-            // Ensure other sections are inactive
-            document.querySelectorAll('.user-content .content-section').forEach(s => s.classList.remove('active'));
-            // Activate dashboard
-            dashboardSection.classList.add('active');
-            // Ensure nav link is active
-            document.querySelectorAll('.user-nav .nav-link').forEach(l => l.classList.remove('active'));
+            console.warn(`User Portal: No nav link found for section '${initialSectionId}'. Loading dashboard as fallback.`);
             const dashboardLink = document.querySelector('.user-nav .nav-link[data-section="dashboard"]');
-            if(dashboardLink) dashboardLink.classList.add('active');
-            // Load data directly
-            await loadDashboardData(); 
-       } else {
-            console.error("Could not find dashboard section to activate!");
-       }
+            if (dashboardLink) dashboardLink.click();
+             else showSection('dashboard'); // Direct fallback if link missing
+        }
 
+        // Add a small delay to allow rendering/styles to apply after click
+        setTimeout(() => {
+            console.log("--- DEBUG: Checking element visibility after init ---");
+            const dashboard = document.getElementById('user-dashboard');
+            const profileSection = document.getElementById('profile-section');
+            
+            if (dashboard) {
+                const dashboardStyle = window.getComputedStyle(dashboard);
+                console.log('Dashboard computed display:', dashboardStyle.display);
+                console.log('Dashboard has active class:', dashboard.classList.contains('active'));
+            } else {
+                console.error('Dashboard element not found for visibility check!');
+            }
+
+            if (profileSection) {
+                const profileStyle = window.getComputedStyle(profileSection);
+                console.log('Profile section computed display:', profileStyle.display);
+                console.log('Profile section has active class:', profileSection.classList.contains('active'));
+            } else {
+                 console.error('Profile section element not found for visibility check!');
+            }
+             console.log("--- END DEBUG ---");
+        }, 100); // 100ms delay
     } else {
-        console.log('Post-verification: Not Logged In. Showing login form.');
-        if (userLoginContainer) userLoginContainer.style.display = 'block'; 
-        if (userDashboard) userDashboard.style.display = 'none';
-        if (userRegisterContainer) userRegisterContainer.style.display = 'none';
+        console.log('User Portal: Not verified. Login form should be visible.');
+        // verifyUserToken should have already shown the login form on failure.
+        // We might not need to do anything extra here unless verifyUserToken failed silently.
+         if (userLoginContainer && userLoginContainer.classList.contains('active') !== true) {
+             console.warn('User Portal: Manually showing login container as verification failed.');
+             if (userDashboard) userDashboard.classList.remove('active');
+             if (userRegisterContainer) userRegisterContainer.classList.remove('active');
+             userLoginContainer.classList.add('active');
+         }
     }
 
+    // --- Initialize Handlers --- 
     if(loginForm) loginForm.addEventListener('submit', handleUserLogin);
     if(registerForm) registerForm.addEventListener('submit', handleUserRegistration);
-    if(logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+    // Logout button listener should be inside the dashboard scope, maybe added in initUserNavigation?
+    // Or ensure it's found only when dashboard is active.
+    const logoutBtnElem = document.getElementById('logout-btn');
+    if(logoutBtnElem) {
+         logoutBtnElem.addEventListener('click', handleLogout); 
+         console.log('User Portal: Logout button listener attached.');
+    } else {
+         console.warn('User Portal: Logout button not found on initial load.');
+    }
     
+    // Toggle between login and register forms listeners
     document.querySelectorAll('.modal-close').forEach(btn => {
         btn.addEventListener('click', () => {
             btn.closest('.modal').style.display = 'none';
@@ -87,16 +103,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(createAccountLink) {
         createAccountLink.addEventListener('click', (e) => {
             e.preventDefault();
-            if (userLoginContainer) userLoginContainer.style.display = 'none';
-            if (userRegisterContainer) userRegisterContainer.style.display = 'block';
+            if (userLoginContainer) userLoginContainer.classList.remove('active');
+            if (userRegisterContainer) userRegisterContainer.classList.add('active');
         });
     }
 
     if(backToLoginLink) {
         backToLoginLink.addEventListener('click', (e) => {
             e.preventDefault();
-            if (userRegisterContainer) userRegisterContainer.style.display = 'none';
-            if (userLoginContainer) userLoginContainer.style.display = 'block';
+            if (userRegisterContainer) userRegisterContainer.classList.remove('active');
+            if (userLoginContainer) userLoginContainer.classList.add('active');
         });
     }
 });
@@ -104,14 +120,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Add this function definition somewhere globally in user.js
 function handleUnauthorized() {
     console.error("Handling Unauthorized (401): Clearing token and showing login.");
-    localStorage.removeItem('userToken');
-    authToken = null; // Less relevant now, but clear anyway
+    localStorage.removeItem('user'); // Clear unified user data
+    localStorage.removeItem('userToken'); 
     currentUser = null;
-    // Explicitly show login, hide dashboard
-    if(userDashboard) userDashboard.style.display = 'none';
-    if(userLoginContainer) userLoginContainer.style.display = 'block';
-    if(userRegisterContainer) userRegisterContainer.style.display = 'none';
-    // Avoid reloading here, just show the login UI on the current page
+    // Explicitly show login using class, hide others
+    if(userDashboard) userDashboard.classList.remove('active');
+    if(userRegisterContainer) userRegisterContainer.classList.remove('active');
+    if(userLoginContainer) userLoginContainer.classList.add('active');
 }
 
 // Functions
@@ -130,14 +145,18 @@ async function handleUserLogin(event) {
         
         const data = await response.json().catch(() => ({})); 
 
-        if (response.ok && data.user) { // Check for user object in response
-            // Login success -> Server set cookie. Store user object, redirect.
-            console.log("Login API call successful. Storing user, redirecting to builder...");
-            localStorage.setItem('user', JSON.stringify(data.user)); 
-            localStorage.removeItem('userToken'); // Remove the old flag if it exists
-            window.location.href = '/Menu_Builder-V4.html'; // Redirect to the main app
+        if (response.ok && data.user) { 
+            // Login API success -> Server set cookie. Now verify to update UI.
+            console.log("handleUserLogin: Login API successful. Verifying token to show dashboard...");
+            // Don't store 'user' here, let verify handle it if needed by header
+            // localStorage.setItem('user', JSON.stringify(data.user)); 
+            // localStorage.removeItem('userToken'); 
+            const loggedIn = await verifyUserToken(); // Let verify show the dashboard
+            if (!loggedIn) {
+                showMessage(loginMsgElement, 'Verification failed after login attempt.', 'error');
+            }
+            // NO REDIRECT
         } else {
-            // Login failed on server or response missing user data
             const errorMsg = data.error || data.message || 'Login failed or invalid response';
             showMessage(loginMsgElement, errorMsg, 'error');
             console.error("Login failed:", errorMsg);
@@ -174,8 +193,8 @@ async function handleUserRegistration(event) {
 
         if (response.ok) {
             showMessage(registerMessage, 'Registration successful! Please login.', 'success');
-            userRegisterContainer.style.display = 'none';
-            userLoginContainer.style.display = 'block';
+            userRegisterContainer.classList.remove('active');
+            userLoginContainer.classList.add('active');
             if(loginForm) loginForm.reset();
         } else {
             showMessage(registerMessage, data.error || data.message || 'Registration failed', 'error');
@@ -186,8 +205,8 @@ async function handleUserRegistration(event) {
     }
 }
 
-async function verifyUserToken(token) {
-    console.log("verifyUserToken: Starting verification...");
+async function verifyUserToken() { // Removed token parameter
+    console.log("verifyUserToken: Starting verification (using cookie)...");
     try {
         const response = await fetch('/api/auth/verify', { 
             method: 'GET',
@@ -200,44 +219,42 @@ async function verifyUserToken(token) {
         if (response.ok && data.loggedIn) {
             console.log("verifyUserToken: SUCCESS - Logged In. User:", data.user);
             currentUser = data.user;
-            localStorage.setItem('userToken', 'loggedIn'); 
+            // localStorage.setItem('userToken', 'loggedIn'); // We don't need this flag anymore
             
-            console.log("verifyUserToken: Hiding login, showing dashboard...");
-            if (userLoginContainer) userLoginContainer.style.display = 'none';
-            if (userDashboard) userDashboard.style.display = 'grid'; 
+            console.log("verifyUserToken: Hiding login, showing dashboard via class...");
+            // Use classList to control visibility
+            if (userLoginContainer) userLoginContainer.classList.remove('active'); 
+            if (userRegisterContainer) userRegisterContainer.classList.remove('active');
+            if (userDashboard) userDashboard.classList.add('active'); 
             
             console.log("verifyUserToken: Updating header elements...");
             const userNameElement = document.getElementById('user-name');
             const planBadgeElement = document.getElementById('user-plan-badge');
-            if(userNameElement) {
-                userNameElement.textContent = currentUser.name || currentUser.email;
-                 console.log("verifyUserToken: Updated user name.");
-            } else {
-                 console.error("verifyUserToken: FAILED to find user-name element!");
-            }
-            if(planBadgeElement) {
-                 planBadgeElement.textContent = currentUser.subscription_status || 'Free';
-                 console.log("verifyUserToken: Updated plan badge.");
-            } else {
-                 console.error("verifyUserToken: FAILED to find user-plan-badge element!");
-            }
-            
+            if(userNameElement) { userNameElement.textContent = currentUser.name || currentUser.email; }
+            if(planBadgeElement) { planBadgeElement.textContent = currentUser.subscription_status || 'Free'; } 
+
             console.log("verifyUserToken: Verification successful, returning true.");
-            return true;
+            return true; // Indicate success
             
         } else {
-            console.log('verifyUserToken: FAILED - Verification response not ok or not logged in. Showing login.');
-            localStorage.removeItem('userToken');
-            if (userLoginContainer) userLoginContainer.style.display = 'block'; 
-            if (userDashboard) userDashboard.style.display = 'none';
-            return false;
+            console.log('verifyUserToken: FAILED. Showing login via class.');
+            localStorage.removeItem('user'); // Clear unified user data
+            localStorage.removeItem('userToken'); 
+            // Use classList to control visibility
+            if (userDashboard) userDashboard.classList.remove('active');
+            if (userRegisterContainer) userRegisterContainer.classList.remove('active');
+            if (userLoginContainer) userLoginContainer.classList.add('active'); 
+            return false; // Indicate failure
         }
     } catch (error) {
         console.error('verifyUserToken: CAUGHT ERROR:', error); 
-        localStorage.removeItem('userToken');
-        if (userLoginContainer) userLoginContainer.style.display = 'block'; 
-        if (userDashboard) userDashboard.style.display = 'none';
-        return false;
+        localStorage.removeItem('user'); // Clear unified user data
+        localStorage.removeItem('userToken'); 
+         // Use classList to control visibility
+        if (userDashboard) userDashboard.classList.remove('active');
+        if (userRegisterContainer) userRegisterContainer.classList.remove('active');
+        if (userLoginContainer) userLoginContainer.classList.add('active'); 
+        return false; // Indicate failure
     }
 }
 
@@ -245,12 +262,14 @@ function handleLogout() {
     fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
         .catch(err => console.error("Server logout call failed:", err))
         .finally(() => {
-            localStorage.removeItem('userToken');
-            authToken = null;
+            localStorage.removeItem('user'); // Clear the unified user data
+            localStorage.removeItem('userToken'); // Clear old flag just in case
             currentUser = null;
             
-            if(userDashboard) userDashboard.style.display = 'none';
-            if(userLoginContainer) userLoginContainer.style.display = 'block';
+            // Show login form
+            if(userDashboard) userDashboard.classList.remove('active');
+            if(userLoginContainer) userLoginContainer.classList.add('active');
+            if(userRegisterContainer) userRegisterContainer.classList.remove('active');
             
             if(loginForm) loginForm.reset();
         });
@@ -269,6 +288,7 @@ function showSection(sectionId) {
         if (section.id === `${sectionId}-section`) {
             section.classList.add('active');
             
+            // Load section data / Initialize section JS
             switch(sectionId) {
                 case 'dashboard':
                     loadDashboardData();
@@ -280,7 +300,8 @@ function showSection(sectionId) {
                     loadTemplatesData();
                     break;
                 case 'profile':
-                    loadProfileData();
+                    // Call initProfile, which includes fetching data
+                    initProfile(); 
                     break;
                 case 'billing':
                     loadBillingData();
@@ -710,33 +731,19 @@ function hideModal(modalId) {
     document.getElementById(modalId).style.display = 'none';
 }
 
-document.getElementById('profile-avatar').addEventListener('change', handleAvatarUpload);
+// File Upload Handlers
+// document.getElementById('profile-avatar').addEventListener('change', handleAvatarUpload); // REMOVED - uses old ID
 
 async function handleAvatarUpload(event) {
+    // This function might be unused now, consider removing if setupLogoUpload covers it.
     const file = event.target.files[0];
     if (!file) return;
 
     const formData = new FormData();
     formData.append('avatar', file);
 
-    try {
-        const response = await fetch('/api/user/profile/avatar', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${authToken}`
-            },
-            body: formData
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            document.getElementById('avatar-preview').src = data.avatar_url;
-            document.getElementById('avatar-preview').style.display = 'block';
-            document.getElementById('no-avatar').style.display = 'none';
-        }
-    } catch (error) {
-        console.error('Error uploading avatar:', error);
-    }
+    // TODO: Add API call to upload avatar
+    console.log('Avatar upload not implemented yet.');
 }
 
 function initProfile() {
@@ -758,7 +765,8 @@ async function fetchProfileData() {
 
     try {
         const response = await fetch('/api/profile', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            method: 'GET',
+            credentials: 'include'
         });
 
         if (!response.ok) {
@@ -776,23 +784,49 @@ async function fetchProfileData() {
         const profile = await response.json();
         console.log('Profile data received:', profile);
 
-        profileForm.elements['company-name'].value = profile.company_name || '';
-        profileForm.elements['company-address'].value = profile.address || '';
-        profileForm.elements['company-phone'].value = profile.phone || '';
-        profileForm.elements['company-email'].value = profile.email || '';
-        profileForm.elements['company-website'].value = profile.website || '';
-        profileForm.elements['primary-color'].value = profile.primary_color || '#4a6cf7';
-        profileForm.elements['secondary-color'].value = profile.secondary_color || '#6c757d';
-        profileForm.elements['accent-color'].value = profile.accent_color || '#343a40';
-        profileForm.elements['default-font'].value = profile.default_font || 'Arial';
+        // --- DETAILED LOGGING FOR POPULATION --- 
+        console.log('Attempting to populate profile form...');
+        const elementsToPopulate = [
+            { id: 'company-name', prop: 'company_name' },
+            { id: 'company-address', prop: 'address' },
+            { id: 'company-phone', prop: 'phone' },
+            { id: 'company-email', prop: 'email' },
+            { id: 'company-website', prop: 'website' },
+            { id: 'primary-color', prop: 'primary_color', default: '#4a6cf7' },
+            { id: 'secondary-color', prop: 'secondary_color', default: '#6c757d' },
+            { id: 'accent-color', prop: 'accent_color', default: '#343a40' },
+            { id: 'default-font', prop: 'default_font', default: 'Arial' }
+        ];
 
+        elementsToPopulate.forEach(item => {
+            const element = profileForm.elements[item.id];
+            if (element) {
+                const value = profile[item.prop] || item.default || '';
+                console.log(` - Populating #${item.id} with value: "${value}" (from profile.${item.prop})`);
+                element.value = value;
+            } else {
+                console.error(` - FAILED to find element with ID: #${item.id}`);
+            }
+        });
+
+        // Logo preview logic
         const logoPreview = document.getElementById('logo-preview');
-        if (logoPreview && profile.logo_path) {
-            logoPreview.src = profile.logo_path;
-            logoPreview.style.display = 'block';
+        if (logoPreview) {
+             console.log(' - Found logo preview element.');
+            if (profile.logo_path) {
+                 console.log(` - Setting logo preview src to: ${profile.logo_path}`);
+                 logoPreview.src = profile.logo_path;
+                 logoPreview.style.display = 'block';
+            } else {
+                 console.log(' - No logo_path found, hiding preview.');
+                 logoPreview.style.display = 'none';
+            }
+        } else {
+             console.error(' - FAILED to find logo-preview element!');
         }
+        // --- END DETAILED LOGGING --- 
         
-        if (profileMessage) profileMessage.textContent = '';
+        if (profileMessage) profileMessage.textContent = ''; 
 
     } catch (error) {
         console.error('Error fetching profile:', error);

@@ -1,11 +1,10 @@
-const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
-// Set up database connection
-const db = new sqlite3.Database(path.join(__dirname, 'data/menus.db'));
+// Import the shared database connection
+const { db } = require('./database'); // Assuming database.js exports 'db'
 
 // Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'menu-builder-secret-key';
@@ -39,15 +38,19 @@ const registerUser = async (name, email, password) => {
                         }
                         
                         const userId = this.lastID;
+                        console.log(`User created with ID: ${userId}`);
                         
-                        // Create empty company profile
+                        // Create default company profile
                         db.run(
-                            'INSERT INTO company_profiles (user_id) VALUES (?)',
-                            [userId],
-                            function(err) {
-                                if (err) {
-                                    return reject(err);
+                            'INSERT INTO company_profiles (user_id, company_name, email) VALUES (?, ?, ?)',
+                            [userId, `${name}'s Company`, email],
+                            (profileErr) => {
+                                if (profileErr) {
+                                    console.error(`Failed to create default profile for user ${userId}:`, profileErr);
+                                    // Decide if registration should fail here - maybe not?
+                                    // Let's proceed but log the error.
                                 }
+                                console.log(`Created default profile for user ${userId}`);
                                 
                                 resolve({
                                     id: userId,
@@ -104,26 +107,40 @@ const loginUser = async (email, password) => {
                 const expiresAt = new Date();
                 expiresAt.setDate(expiresAt.getDate() + 1); // 1 day from now
                 
-                // Store session in database
-                db.run(
-                    'INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?)',
-                    [user.id, sessionToken, expiresAt.toISOString()],
-                    (err) => {
-                        if (err) {
-                            return reject(err);
-                        }
-                        
-                        // Resolve with user details and tokens
-                        resolve({
-                            userId: user.id,
-                            name: user.name,
-                            email: user.email,
-                            is_admin: user.is_admin === 1,
-                            token,
-                            sessionToken
-                        });
+                // --- DEBUG: Check if sessions table exists RIGHT before insert ---
+                db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'", [], (checkErr, table) => {
+                    if (checkErr) {
+                         console.error("DEBUG: Error checking for sessions table:", checkErr);
+                    } else if (!table) {
+                         console.error("DEBUG: sessions table DOES NOT EXIST right before insert!");
+                    } else {
+                         console.log("DEBUG: sessions table exists right before insert.");
                     }
-                );
+                     // Proceed with insert regardless, to see the error if it happens
+                     db.run(
+                         'INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?)',
+                         [user.id, sessionToken, expiresAt.toISOString()],
+                         (err) => {
+                             if (err) {
+                                 // Log the specific error here
+                                 console.error('Error inserting into sessions table:', err);
+                                 return reject(err); // Reject the login promise
+                             }
+                             
+                             // Resolve with user details and tokens
+                             resolve({
+                                 userId: user.id,
+                                 name: user.name, 
+                                 email: user.email,
+                                 is_admin: user.is_admin === 1, 
+                                 token, // JWT
+                                 sessionToken // Session token
+                             });
+                         }
+                     );
+                });
+                // --- END DEBUG --- 
+
             } catch (error) {
                 reject(error);
             }

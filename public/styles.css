@@ -139,10 +139,11 @@ button,
 /* Dashboard Styles */
 .dashboard {
     display: none;
-    flex: 1;
 }
 
-.dashboard.active {
+.dashboard.active,
+#user-dashboard.active,
+#admin-panel.active {
     display: grid;
     grid-template-areas:
         "header header"
@@ -152,7 +153,8 @@ button,
     min-height: 100vh;
 }
 
-.admin-header {
+.admin-header,
+.user-header {
     grid-area: header;
     display: flex;
     justify-content: space-between;
@@ -163,7 +165,8 @@ button,
 }
 
 /* Navigation */
-.admin-nav {
+.admin-nav,
+.user-nav {
     grid-area: nav;
     background: var(--card-background);
     padding: 1rem;
@@ -197,7 +200,8 @@ button,
 }
 
 /* Content Area */
-.admin-content {
+.admin-content,
+.user-content {
     grid-area: main;
     padding: 2rem;
     background-color: var(--background-color);
@@ -373,8 +377,16 @@ th {
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    .dashboard {
+    .dashboard.active,
+    #user-dashboard.active,
+    #admin-panel.active {
+        grid-template-areas:
+            "header"
+            "nav"
+            "main";
         grid-template-columns: 1fr;
+        grid-template-rows: auto auto 1fr;
+        display: grid;
     }
 
     .admin-nav,
