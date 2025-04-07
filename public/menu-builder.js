@@ -498,7 +498,7 @@ function isAtColumnBreak(element) {
 }
 
 // Generate HTML function
-function generateHTML() {
+function generateHTML(forPrint = false) {
     // Get menu data
     const menuTitle = document.getElementById('title').value;
     const menuSubtitle = document.getElementById('subtitle').value;
@@ -644,7 +644,7 @@ function generateHTML() {
         <html>
         <head>
             <meta charset="UTF-8">
-            <title>Menu</title>
+            <title>${encodeSpecialChars(menuTitle || 'Menu')}</title>
             <style>
                 @import url('https://fonts.googleapis.com/css2?family=${selectedFont.replace(' ', '+')}&display=swap');
                 
@@ -713,18 +713,31 @@ function generateHTML() {
                     .print-button {
                         display: none;
                     }
+                    
                     body {
                         width: 8.5in;
                         height: 11in;
                     }
+                    
                     .menu-container {
                         max-width: 7.5in;
+                    }
+                    
+                    /* Fix for blank page issue */
+                    html, body {
+                        overflow: hidden;
+                        page-break-after: avoid;
+                    }
+                    
+                    .menu-content {
+                        page-break-before: avoid;
+                        page-break-after: avoid;
                     }
                 }
             </style>
         </head>
         <body>
-            <button class="print-button" onclick="window.print()">Print Menu</button>
+            <button class="print-button" onclick="printMenu()">Print Menu</button>
             <div class="menu-container">
                 ${menuTitle ? `<h1>${encodeSpecialChars(menuTitle)}</h1>` : ''}
                 ${menuSubtitle ? `<h2>${encodeSpecialChars(menuSubtitle)}</h2>` : ''}
@@ -758,12 +771,36 @@ function generateHTML() {
                 document.fonts.ready.then(function() {
                     console.log('Fonts loaded');
                 });
+                
+                // Improved print function
+                function printMenu() {
+                    // Wait for fonts to load
+                    document.fonts.ready.then(function() {
+                        // Hide UI elements for printing
+                        const printButton = document.querySelector('.print-button');
+                        if (printButton) {
+                            printButton.style.display = 'none';
+                        }
+                        
+                        // Print after a small delay to ensure everything is rendered
+                        setTimeout(function() {
+                            window.print();
+                            
+                            // Show UI elements again after printing
+                            if (printButton) {
+                                printButton.style.display = 'block';
+                            }
+                        }, 300);
+                    });
+                }
+                
+                ${forPrint ? 'window.onload = function() { printMenu(); };' : ''}
             </script>
         </body>
         </html>
     `;
 
-    // Open in a new tab instead of downloading
+    // Open in a new tab
     const newTab = window.open();
     newTab.document.write(html);
     newTab.document.close();
@@ -1235,10 +1272,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('add-spacer').addEventListener('click', () => addSpacer());
     
     // Generate HTML button
-    document.getElementById('generate-html').addEventListener('click', generateHTML);
+    document.getElementById('generate-html').addEventListener('click', () => generateHTML(false));
     
     // Print menu button in preview section
-    document.getElementById('print-menu-btn').addEventListener('click', generateHTML);
+    document.getElementById('print-menu-btn').addEventListener('click', () => generateHTML(true));
     
     // Initialize menu select
     updateMenuSelect();
