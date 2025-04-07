@@ -131,6 +131,7 @@ function addSection(data = {}) {
 
     updateProgress();
     updatePreview();
+    markUnsavedChanges();
 }
 
 // Toggle section collapse/expand
@@ -293,6 +294,7 @@ function addItem(sectionId, data = {}) {
 
     updateProgress();
     updatePreview();
+    markUnsavedChanges();
 }
 
 // Delete a section
@@ -301,6 +303,7 @@ function deleteSection(sectionId) {
         document.getElementById(sectionId).remove();
         updateProgress();
         updatePreview();
+        markUnsavedChanges();
     }
 }
 
@@ -310,6 +313,7 @@ function deleteItem(itemId) {
         document.getElementById(itemId).remove();
         updateProgress();
         updatePreview();
+        markUnsavedChanges();
     }
 }
 
@@ -831,6 +835,164 @@ function generateHTML(forPrint = false) {
     newTab.document.close();
 }
 
+// Add variable to track unsaved changes
+let hasUnsavedChanges = false;
+let initialState = null;
+
+// Function to mark changes as unsaved
+function markUnsavedChanges() {
+    // Only mark as unsaved if different from initial state
+    const currentState = getMenuState();
+    if (initialState && JSON.stringify(currentState) !== JSON.stringify(initialState)) {
+        hasUnsavedChanges = true;
+    }
+}
+
+// Function to get current menu state for comparison
+function getMenuState() {
+    const elements = Array.from(document.getElementById('sections').children)
+        .map((element, index) => {
+            const elementType = element.dataset.type || 'section';
+
+            if (elementType === 'spacer') {
+                return {
+                    type: 'spacer',
+                    size: element.querySelector('.spacer-size').value,
+                    unit: element.querySelector('.spacer-unit-select').value
+                };
+            } else {
+                return {
+                    type: 'section',
+                    name: element.querySelector('.section-name').value,
+                    active: element.querySelector('.active-toggle').checked,
+                    items: Array.from(element.querySelectorAll('.item-card'))
+                        .map(item => ({
+                            name: item.querySelector('.item-name').value,
+                            description: item.querySelector('.item-desc').value,
+                            price: item.querySelector('.item-price').value,
+                            active: item.querySelector('.active-toggle').checked
+                        }))
+                };
+            }
+        });
+
+    return {
+        name: document.getElementById('menu-name').value,
+        title: document.getElementById('title').value,
+        subtitle: document.getElementById('subtitle').value,
+        font: document.getElementById('font-select').value,
+        layout: document.getElementById('layout-select').value,
+        showDollarSign: config.showDollarSign,
+        showDecimals: config.showDecimals,
+        showSectionDividers: config.showSectionDividers,
+        elements: elements
+    };
+}
+
+// Function to mark changes as saved
+function markChangesSaved() {
+    hasUnsavedChanges = false;
+    initialState = getMenuState();
+}
+
+// Function to check if there are unsaved changes and confirm action
+function confirmIfUnsavedChanges(action) {
+    if (hasUnsavedChanges) {
+        return confirm('You have unsaved changes. Are you sure you want to proceed?');
+    }
+    return true;
+}
+
+// Function to load a menu by name
+async function loadMenu(menuName) {
+    if (!menuName) {
+        alert('Please select a menu to load');
+        return false;
+    }
+
+    try {
+        const response = await fetch(`/api/menus/${menuName}`);
+        if (response.ok) {
+            const menuData = await response.json();
+            
+            // Populate the menu name field
+            document.getElementById('menu-name').value = menuData.name;
+            
+            document.getElementById('title').value = menuData.title || '';
+            document.getElementById('subtitle').value = menuData.subtitle || '';
+            document.getElementById('font-select').value = menuData.font || 'Playfair Display';
+            document.getElementById('layout-select').value = menuData.layout || 'single';
+            loadFont(menuData.font || 'Playfair Display');
+            
+            // Update configuration options
+            config.showDollarSign = menuData.show_dollar_sign !== undefined ? menuData.show_dollar_sign : true;
+            config.showDecimals = menuData.show_decimals !== undefined ? menuData.show_decimals : true;
+            config.showSectionDividers = menuData.show_section_dividers !== undefined ? menuData.show_section_dividers : true;
+            
+            // Update configuration controls
+            document.getElementById('show-dollar-sign').checked = config.showDollarSign;
+            document.getElementById('show-decimals').checked = config.showDecimals;
+            document.getElementById('show-dividers').checked = config.showSectionDividers;
+
+            document.getElementById('sections').innerHTML = '';
+            
+            // Handle both new format (with elements) and old format (with sections)
+            if (menuData.elements) {
+                // Sort elements by position
+                const sortedElements = [...menuData.elements].sort((a, b) => a.position - b.position);
+                
+                // Add each element based on its type
+                sortedElements.forEach(element => {
+                    if (element.type === 'spacer') {
+                        addSpacer({
+                            size: element.size,
+                            unit: element.unit
+                        });
+                    } else if (element.type === 'section') {
+                        // Sort items by position
+                        if (element.items) {
+                            element.items = [...element.items].sort((a, b) => a.position - b.position);
+                        }
+                        addSection({
+                            name: element.name,
+                            active: element.active,
+                            items: element.items
+                        });
+                    }
+                });
+            } else if (menuData.sections) {
+                // Legacy format support
+                // Sort sections by position
+                const sortedSections = [...menuData.sections].sort((a, b) => a.position - b.position);
+                sortedSections.forEach(section => {
+                    // Sort items by position
+                    if (section.items) {
+                        section.items = [...section.items].sort((a, b) => a.position - b.position);
+                    }
+                    addSection(section);
+                });
+            }
+
+            updatePreview();
+            
+            // Initialize the state after loading
+            setTimeout(() => {
+                markChangesSaved();
+            }, 100);
+            
+            return true;
+        } else {
+            const error = await response.json();
+            alert(`Error loading menu: ${error.error}`);
+            return false;
+        }
+    } catch (error) {
+        alert('Error loading menu. Please try again.');
+        console.error('Error:', error);
+        return false;
+    }
+}
+
 // Save menu
 document.getElementById('save-menu').addEventListener('click', async () => {
     const menuName = document.getElementById('menu-name').value;
@@ -902,6 +1064,7 @@ document.getElementById('save-menu').addEventListener('click', async () => {
         if (response.ok) {
             updateMenuSelect();
             alert('Menu saved successfully!');
+            markChangesSaved();
         } else {
             const error = await response.json();
             alert(`Error saving menu: ${error.error}`);
@@ -912,88 +1075,97 @@ document.getElementById('save-menu').addEventListener('click', async () => {
     }
 });
 
-// Load menu
-document.getElementById('load-menu').addEventListener('click', async () => {
+// New Menu button
+const newMenuBtn = document.getElementById('new-menu');
+if (newMenuBtn) {
+    newMenuBtn.addEventListener('click', () => {
+        if (confirmIfUnsavedChanges()) {
+            clearMenu();
+        }
+    });
+}
+
+// Function to clear the current menu
+function clearMenu() {
+    document.getElementById('menu-name').value = '';
+    document.getElementById('title').value = '';
+    document.getElementById('subtitle').value = '';
+    document.getElementById('font-select').value = 'Playfair Display';
+    document.getElementById('layout-select').value = 'single';
+    document.getElementById('sections').innerHTML = '';
+    loadFont('Playfair Display');
+    
+    // Reset menu select
+    document.getElementById('menu-select').value = '';
+    
+    // Update preview
+    updatePreview();
+    
+    // Mark as saved (no changes to save yet)
+    markChangesSaved();
+}
+
+// Add duplicate menu functionality
+document.getElementById('duplicate-menu').addEventListener('click', async () => {
     const menuName = document.getElementById('menu-select').value;
     if (!menuName) {
-        alert('Please select a menu to load');
+        alert('Please select a menu to duplicate');
         return;
     }
 
+    // Prompt for new name
+    const newMenuName = prompt('Enter name for the duplicated menu:', `${menuName} - Copy`);
+    if (!newMenuName) return; // User cancelled
+
     try {
+        // First load the menu to duplicate
         const response = await fetch(`/api/menus/${menuName}`);
-        if (response.ok) {
-            const menuData = await response.json();
-            
-            // Populate the menu name field
-            document.getElementById('menu-name').value = menuData.name;
-            
-            document.getElementById('title').value = menuData.title || '';
-            document.getElementById('subtitle').value = menuData.subtitle || '';
-            document.getElementById('font-select').value = menuData.font || 'Playfair Display';
-            document.getElementById('layout-select').value = menuData.layout || 'single';
-            loadFont(menuData.font || 'Playfair Display');
-            
-            // Update configuration options
-            config.showDollarSign = menuData.show_dollar_sign !== undefined ? menuData.show_dollar_sign : true;
-            config.showDecimals = menuData.show_decimals !== undefined ? menuData.show_decimals : true;
-            config.showSectionDividers = menuData.show_section_dividers !== undefined ? menuData.show_section_dividers : true;
-            
-            // Update configuration controls
-            document.getElementById('show-dollar-sign').checked = config.showDollarSign;
-            document.getElementById('show-decimals').checked = config.showDecimals;
-            document.getElementById('show-dividers').checked = config.showSectionDividers;
-
-            document.getElementById('sections').innerHTML = '';
-            
-            // Handle both new format (with elements) and old format (with sections)
-            if (menuData.elements) {
-                // Sort elements by position
-                const sortedElements = [...menuData.elements].sort((a, b) => a.position - b.position);
-                
-                // Add each element based on its type
-                sortedElements.forEach(element => {
-                    if (element.type === 'spacer') {
-                        addSpacer({
-                            size: element.size,
-                            unit: element.unit
-                        });
-                    } else if (element.type === 'section') {
-                        // Sort items by position
-                        if (element.items) {
-                            element.items = [...element.items].sort((a, b) => a.position - b.position);
-                        }
-                        addSection({
-                            name: element.name,
-                            active: element.active,
-                            items: element.items
-                        });
-                    }
-                });
-            } else if (menuData.sections) {
-                // Legacy format support
-                // Sort sections by position
-                const sortedSections = [...menuData.sections].sort((a, b) => a.position - b.position);
-                sortedSections.forEach(section => {
-                    // Sort items by position
-                    if (section.items) {
-                        section.items = [...section.items].sort((a, b) => a.position - b.position);
-                        console.log('Loading section:', section.name, 'active:', section.active);
-                        section.items.forEach(item => {
-                            console.log('Loading item:', item.name, 'active:', item.active);
-                        });
-                    }
-                    addSection(section);
-                });
-            }
-
-            updatePreview();
-        } else {
+        if (!response.ok) {
             const error = await response.json();
-            alert(`Error loading menu: ${error.error}`);
+            alert(`Error duplicating menu: ${error.error}`);
+            return;
+        }
+        
+        const menuData = await response.json();
+        
+        // Create a new menu with the same data but new name
+        const duplicatedMenu = {
+            name: newMenuName,
+            title: menuData.title || '',
+            subtitle: menuData.subtitle || '',
+            font: menuData.font || 'Playfair Display',
+            layout: menuData.layout || 'single',
+            showDollarSign: menuData.show_dollar_sign !== undefined ? menuData.show_dollar_sign : true,
+            showDecimals: menuData.show_decimals !== undefined ? menuData.show_decimals : true,
+            showSectionDividers: menuData.show_section_dividers !== undefined ? menuData.show_section_dividers : true,
+            elements: menuData.elements || menuData.sections?.map(s => ({...s, type: 'section'})) || []
+        };
+        
+        // Save the duplicated menu
+        const saveResponse = await fetch('/api/menus', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(duplicatedMenu)
+        });
+        
+        if (saveResponse.ok) {
+            await updateMenuSelect();
+            alert(`Menu duplicated as "${newMenuName}"`);
+            
+            // Select the new menu in the dropdown
+            const menuSelect = document.getElementById('menu-select');
+            menuSelect.value = newMenuName;
+            
+            // Load the duplicated menu
+            await loadMenu(newMenuName);
+        } else {
+            const error = await saveResponse.json();
+            alert(`Error creating duplicated menu: ${error.error}`);
         }
     } catch (error) {
-        alert('Error loading menu. Please try again.');
+        alert('Error duplicating menu. Please try again.');
         console.error('Error:', error);
     }
 });
@@ -1015,6 +1187,14 @@ document.getElementById('delete-menu').addEventListener('click', async () => {
             if (response.ok) {
                 updateMenuSelect();
                 alert('Menu deleted successfully!');
+                // Clear the current menu if we just deleted it
+                if (document.getElementById('menu-name').value === menuName) {
+                    document.getElementById('menu-name').value = '';
+                    document.getElementById('sections').innerHTML = '';
+                    document.getElementById('title').value = '';
+                    document.getElementById('subtitle').value = '';
+                    updatePreview();
+                }
             } else {
                 const error = await response.json();
                 alert(`Error deleting menu: ${error.error}`);
@@ -1063,6 +1243,7 @@ function moveElement(elementId, direction) {
     }
     
     updatePreview();
+    markUnsavedChanges();
 }
 
 // Update the moveSection function to use moveElement
@@ -1289,24 +1470,34 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('show-dollar-sign').addEventListener('change', (e) => {
         config.showDollarSign = e.target.checked;
         updatePreview();
+        markUnsavedChanges();
     });
 
     document.getElementById('show-decimals').addEventListener('change', (e) => {
         config.showDecimals = e.target.checked;
         updatePreview();
+        markUnsavedChanges();
     });
 
     document.getElementById('show-dividers').addEventListener('change', (e) => {
         config.showSectionDividers = e.target.checked;
         updatePreview();
+        markUnsavedChanges();
     });
     
     // Add section button
     document.getElementById('add-section').addEventListener('click', () => addSection());
     
     // Font and layout event listeners
-    document.getElementById('font-select').addEventListener('change', (e) => loadFont(e.target.value));
-    document.getElementById('layout-select').addEventListener('change', updatePreview);
+    document.getElementById('font-select').addEventListener('change', (e) => {
+        loadFont(e.target.value);
+        markUnsavedChanges();
+    });
+    
+    document.getElementById('layout-select').addEventListener('change', () => {
+        updatePreview();
+        markUnsavedChanges();
+    });
     
     // Add spacer button
     document.getElementById('add-spacer').addEventListener('click', () => addSpacer());
@@ -1328,6 +1519,43 @@ document.addEventListener('DOMContentLoaded', function() {
             toggleSection(sectionId);
         }
     });
+    
+    // Auto-load menu when selected from dropdown
+    document.getElementById('menu-select').addEventListener('change', async (e) => {
+        if (e.target.value) {
+            if (confirmIfUnsavedChanges()) {
+                await loadMenu(e.target.value);
+            } else {
+                // Revert selection if user cancels
+                setTimeout(() => {
+                    e.target.value = document.getElementById('menu-name').value || '';
+                }, 100);
+            }
+        }
+    });
+    
+    // Track changes in input fields
+    document.body.addEventListener('input', function(e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+            markUnsavedChanges();
+        }
+    });
+    
+    // Track changes when sections or items are added/deleted
+    const mutationObserver = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'childList' && mutation.target.id === 'sections') {
+                markUnsavedChanges();
+            }
+        });
+    });
+    
+    mutationObserver.observe(document.getElementById('sections'), { childList: true, subtree: true });
+
+    // Initialize the state
+    setTimeout(() => {
+        markChangesSaved();
+    }, 100);
 });
 
 // Add a spacer element
@@ -1462,6 +1690,7 @@ function addSpacer(data = {}) {
     document.getElementById('sections').appendChild(spacerDiv);
 
     updatePreview();
+    markUnsavedChanges();
 }
 
 // Toggle spacer collapse/expand
