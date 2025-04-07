@@ -148,13 +148,28 @@ input:focus, select:focus {
     gap: 10px;
 }
 
-.section-name {
+.section-name-container {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    margin-right: 10px;
+}
+
+.section-name-label {
+    font-size: 12px;
+    font-weight: bold;
+    color: #495057;
+    margin-bottom: 4px;
+}
+
+.section-name {
     margin: 0;
     border: 1px solid #ccc;
     padding: 8px;
     border-radius: 4px;
     min-width: 0;
+    width: 100%;
 }
 
 .section-controls {

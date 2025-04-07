@@ -41,12 +41,108 @@ function addSection(data = {}) {
     const header = document.createElement('div');
     header.className = 'section-header';
     
-    // Create section name input
-    const nameInput = document.createElement('input');
-    nameInput.type = 'text';
-    nameInput.className = 'section-name';
-    nameInput.placeholder = 'Section Name';
-    nameInput.value = data.name || '';
+    // Create section name field container
+    const nameFieldContainer = document.createElement('div');
+    nameFieldContainer.className = 'section-name-container';
+    
+    // Add label for section name
+    const nameLabel = document.createElement('label');
+    nameLabel.textContent = 'Menu Section Title';
+    nameLabel.className = 'section-name-label';
+    nameFieldContainer.appendChild(nameLabel);
+    
+    // Common section names for dropdown
+    const commonSectionNames = [
+        'Appetizers',
+        'Salads',
+        'Soups',
+        'Pastas',
+        'Main Courses',
+        'Entrées',
+        'Desserts',
+        'Wine',
+        'Beverages',
+        'Sides',
+        'Specials',
+        'Breakfast',
+        'Lunch',
+        'Dinner',
+        'Cocktails',
+        'Beer'
+    ];
+    
+    // Create section name select
+    const nameSelect = document.createElement('select');
+    nameSelect.className = 'section-name';
+    
+    // Add empty option as placeholder
+    const placeholderOption = document.createElement('option');
+    placeholderOption.value = '';
+    placeholderOption.textContent = 'Select a section or add custom';
+    placeholderOption.disabled = !data.name; // Disable placeholder if we have a value
+    placeholderOption.selected = !data.name; // Select placeholder if no value
+    nameSelect.appendChild(placeholderOption);
+    
+    // Add common section options
+    commonSectionNames.forEach(sectionName => {
+        const option = document.createElement('option');
+        option.value = sectionName;
+        option.textContent = sectionName;
+        option.selected = data.name === sectionName;
+        nameSelect.appendChild(option);
+    });
+    
+    // Add custom option
+    const customOption = document.createElement('option');
+    customOption.value = 'custom';
+    customOption.textContent = '+ Add Custom Section';
+    nameSelect.appendChild(customOption);
+    
+    // If we have a custom name, add it as an option and select it
+    if (data.name && !commonSectionNames.includes(data.name)) {
+        const customNameOption = document.createElement('option');
+        customNameOption.value = data.name;
+        customNameOption.textContent = data.name;
+        customNameOption.selected = true;
+        nameSelect.insertBefore(customNameOption, customOption);
+    }
+    
+    // Handle custom section selection
+    nameSelect.addEventListener('change', function() {
+        if (this.value === 'custom') {
+            const customName = prompt('Enter custom section name:');
+            if (customName) {
+                // Check if option already exists
+                let exists = false;
+                for (let i = 0; i < this.options.length; i++) {
+                    if (this.options[i].value === customName) {
+                        exists = true;
+                        this.value = customName;
+                        break;
+                    }
+                }
+                
+                // Add new option if doesn't exist
+                if (!exists) {
+                    const newOption = document.createElement('option');
+                    newOption.value = customName;
+                    newOption.textContent = customName;
+                    this.insertBefore(newOption, customOption);
+                    this.value = customName;
+                }
+            } else {
+                // If user cancels, revert to previous selection or placeholder
+                this.value = data.name || '';
+            }
+        }
+        
+        // Update preview when section name changes
+        updatePreview();
+        markUnsavedChanges();
+    });
+    
+    nameFieldContainer.appendChild(nameSelect);
+    header.appendChild(nameFieldContainer);
 
     // Create active toggle container
     const activeToggleContainer = document.createElement('div');
@@ -90,7 +186,6 @@ function addSection(data = {}) {
     deleteSectionBtn.addEventListener('click', () => deleteSection(sectionId));
     
     // Add elements to header
-    header.appendChild(nameInput);
     header.appendChild(activeToggleContainer);
     
     controlsContainer.appendChild(toggleBtn);
@@ -112,7 +207,8 @@ function addSection(data = {}) {
 
     document.getElementById('sections').appendChild(sectionDiv);
 
-    if (!data.name) nameInput.focus();
+    // Focus the select if there's no name
+    if (!data.name) nameSelect.focus();
 
     activeToggle.addEventListener('change', function() {
         sectionDiv.classList.toggle('inactive', !this.checked);
@@ -123,10 +219,6 @@ function addSection(data = {}) {
 
     if (data.items) {
         data.items.forEach(itemData => addItem(sectionId, itemData));
-        console.log('Loading section:', data.name, 'active:', data.active);
-        data.items.forEach(item => {
-            console.log('Loading item:', item.name, 'active:', item.active);
-        });
     }
 
     updateProgress();
