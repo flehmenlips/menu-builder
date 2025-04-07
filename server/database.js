@@ -20,6 +20,12 @@ db.serialize(() => {
             show_decimals INTEGER DEFAULT 1,
             show_section_dividers INTEGER DEFAULT 1,
             wrap_special_chars INTEGER DEFAULT 1,
+            logo_path TEXT,
+            logo_position TEXT DEFAULT 'top',
+            logo_size TEXT DEFAULT 'medium',
+            background_color TEXT DEFAULT '#ffffff',
+            text_color TEXT DEFAULT '#000000',
+            accent_color TEXT DEFAULT '#333333',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -138,45 +144,42 @@ const getSpacers = async (menuName) => {
     });
 };
 
-const createMenu = async (name, title, subtitle, font, layout, showDollarSign, showDecimals, showSectionDividers, elements) => {
+const createMenu = async (name, title, subtitle, font, layout, showDollarSign, showDecimals, showSectionDividers, elements, logoPath, logoPosition, logoSize, backgroundColor, textColor, accentColor) => {
     return new Promise((resolve, reject) => {
         db.run(
-            'INSERT INTO menus (name, title, subtitle, font, layout, show_dollar_sign, show_decimals, show_section_dividers) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [name, title, subtitle, font, layout, showDollarSign, showDecimals, showSectionDividers],
+            `INSERT INTO menus (
+                name, title, subtitle, font, layout, 
+                show_dollar_sign, show_decimals, show_section_dividers,
+                logo_path, logo_position, logo_size,
+                background_color, text_color, accent_color
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                name, title, subtitle, font, layout, 
+                showDollarSign, showDecimals, showSectionDividers,
+                logoPath, logoPosition, logoSize,
+                backgroundColor, textColor, accentColor
+            ],
             async function(err) {
-                if (err) reject(err);
-                else {
+                if (err) {
+                    console.error('Error creating menu:', err);
+                    reject(err);
+                } else {
                     try {
-                        // Create elements with additional validation
+                        // Process elements (sections and spacers)
                         if (elements && Array.isArray(elements)) {
-                            // Filter out any undefined or invalid elements before mapping
-                            const validElements = elements.filter(element => 
-                                element && typeof element === 'object' && element.type
-                            );
-                            
-                            if (validElements.length === 0) {
-                                console.warn(`Warning: No valid elements found for menu "${name}"`);
-                            }
-                            
                             await Promise.all(
-                                validElements.map(async (element, index) => {
-                                    try {
-                                        if (element.type === 'section') {
-                                            return createSection(name, element, element.position || index);
-                                        } else if (element.type === 'spacer') {
-                                            return createSpacer(name, element, element.position || index);
-                                        } else {
-                                            console.warn(`Skipping element with unknown type: ${element.type}`);
-                                            return Promise.resolve();
-                                        }
-                                    } catch (error) {
-                                        console.error(`Error processing element at index ${index}:`, error);
-                                        return Promise.resolve(); // Continue with other elements
+                                elements.map(async (element, index) => {
+                                    // Use index as position if not specified
+                                    const position = element.position !== undefined ? element.position : index;
+                                    
+                                    if (element.type === 'spacer') {
+                                        await createSpacer(name, element, position);
+                                    } else {
+                                        // Default to section type if not specified
+                                        await createSection(name, element, position);
                                     }
                                 })
                             );
-                        } else {
-                            console.warn(`No elements array provided for menu "${name}"`);
                         }
                         
                         const menu = await getMenu(name);
@@ -295,60 +298,79 @@ const createSpacer = async (menuName, spacer, position) => {
     });
 };
 
-const updateMenu = async (name, title, subtitle, font, layout, showDollarSign, showDecimals, showSectionDividers, elements) => {
+const updateMenu = async (name, title, subtitle, font, layout, showDollarSign, showDecimals, showSectionDividers, elements, logoPath, logoPosition, logoSize, backgroundColor, textColor, accentColor) => {
     return new Promise((resolve, reject) => {
-        db.run(
-            'UPDATE menus SET title = ?, subtitle = ?, font = ?, layout = ?, show_dollar_sign = ?, show_decimals = ?, show_section_dividers = ?, updated_at = CURRENT_TIMESTAMP WHERE name = ?',
-            [title, subtitle, font, layout, showDollarSign, showDecimals, showSectionDividers, name],
-            async function(err) {
-                if (err) reject(err);
-                else if (this.changes === 0) resolve(null);
-                else {
+        // First check if menu exists
+        db.get('SELECT * FROM menus WHERE name = ?', [name], async (err, menu) => {
+            if (err) {
+                return reject(err);
+            }
+            
+            if (!menu) {
+                return resolve(null);
+            }
+            
+            db.run(
+                `UPDATE menus SET 
+                    title = ?, subtitle = ?, font = ?, layout = ?, 
+                    show_dollar_sign = ?, show_decimals = ?, show_section_dividers = ?,
+                    logo_path = ?, logo_position = ?, logo_size = ?,
+                    background_color = ?, text_color = ?, accent_color = ?,
+                    updated_at = CURRENT_TIMESTAMP 
+                WHERE name = ?`,
+                [
+                    title !== undefined ? title : menu.title,
+                    subtitle !== undefined ? subtitle : menu.subtitle,
+                    font !== undefined ? font : menu.font,
+                    layout !== undefined ? layout : menu.layout,
+                    showDollarSign !== undefined ? showDollarSign : menu.show_dollar_sign,
+                    showDecimals !== undefined ? showDecimals : menu.show_decimals,
+                    showSectionDividers !== undefined ? showSectionDividers : menu.show_section_dividers,
+                    logoPath !== undefined ? logoPath : menu.logo_path,
+                    logoPosition !== undefined ? logoPosition : menu.logo_position,
+                    logoSize !== undefined ? logoSize : menu.logo_size,
+                    backgroundColor !== undefined ? backgroundColor : menu.background_color,
+                    textColor !== undefined ? textColor : menu.text_color,
+                    accentColor !== undefined ? accentColor : menu.accent_color,
+                    name
+                ],
+                async function(err) {
+                    if (err) {
+                        console.error('Error updating menu:', err);
+                        return reject(err);
+                    }
+                    
                     try {
-                        // Delete existing sections, items, and spacers
+                        // Delete existing sections and spacers
                         await deleteSections(name);
                         await deleteSpacers(name);
                         
-                        // Create new elements - with additional validation
+                        // Create new elements
                         if (elements && Array.isArray(elements)) {
-                            // Filter out any undefined or invalid elements before mapping
-                            const validElements = elements.filter(element => 
-                                element && typeof element === 'object' && element.type
-                            );
-                            
-                            if (validElements.length === 0) {
-                                console.warn(`Warning: No valid elements found for menu "${name}"`);
-                            }
-                            
                             await Promise.all(
-                                validElements.map(async (element, index) => {
-                                    try {
-                                        if (element.type === 'section') {
-                                            return createSection(name, element, element.position || index);
-                                        } else if (element.type === 'spacer') {
-                                            return createSpacer(name, element, element.position || index);
-                                        } else {
-                                            console.warn(`Skipping element with unknown type: ${element.type}`);
-                                            return Promise.resolve();
-                                        }
-                                    } catch (error) {
-                                        console.error(`Error processing element at index ${index}:`, error);
-                                        return Promise.resolve(); // Continue with other elements
+                                elements.map(async (element, index) => {
+                                    // Use index as position if not specified
+                                    const position = element.position !== undefined ? element.position : index;
+                                    
+                                    if (element.type === 'spacer') {
+                                        await createSpacer(name, element, position);
+                                    } else {
+                                        // Default to section type if not specified
+                                        await createSection(name, element, position);
                                     }
                                 })
                             );
-                        } else {
-                            console.warn(`No elements array provided for menu "${name}"`);
                         }
                         
-                        const menu = await getMenu(name);
-                        resolve(menu);
+                        const updatedMenu = await getMenu(name);
+                        resolve(updatedMenu);
                     } catch (error) {
+                        console.error('Error processing elements:', error);
                         reject(error);
                     }
                 }
-            }
-        );
+            );
+        });
     });
 };
 

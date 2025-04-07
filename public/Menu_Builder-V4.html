@@ -11,8 +11,44 @@
     <div class="container">
         <div class="sidebar">
             <h3>Settings</h3>
+            
+            <!-- Logo Settings -->
             <div class="sidebar-section">
-                <h4>Display Options</h4>
+                <h4>Restaurant Logo</h4>
+                <div class="logo-upload">
+                    <div id="logo-preview-container">
+                        <img id="logo-preview" src="/images/placeholder-logo.png" alt="Logo Preview">
+                    </div>
+                    <div class="file-upload-wrapper">
+                        <label for="logo-upload" class="file-upload-label">
+                            <i class="fas fa-upload"></i> Upload Logo
+                        </label>
+                        <input type="file" id="logo-upload" accept="image/*" class="file-upload-input">
+                    </div>
+                </div>
+                
+                <div class="config-option">
+                    <label>Logo Position:</label>
+                    <select id="logo-position">
+                        <option value="top">Top (Above Title)</option>
+                        <option value="title">Next to Title</option>
+                        <option value="none">Don't Show Logo</option>
+                    </select>
+                </div>
+                
+                <div class="config-option">
+                    <label>Logo Size:</label>
+                    <select id="logo-size">
+                        <option value="small">Small</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="large">Large</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Price Display -->
+            <div class="sidebar-section">
+                <h4>Price Display</h4>
                 <div class="config-option">
                     <label>
                         <input type="checkbox" id="show-dollar-sign" checked>
@@ -25,6 +61,11 @@
                         Show Decimals
                     </label>
                 </div>
+            </div>
+            
+            <!-- Layout Options -->
+            <div class="sidebar-section">
+                <h4>Layout Options</h4>
                 <div class="config-option">
                     <label>
                         <input type="checkbox" id="show-dividers" checked>
@@ -32,6 +73,24 @@
                     </label>
                 </div>
             </div>
+            
+            <!-- Color Options -->
+            <div class="sidebar-section">
+                <h4>Menu Colors</h4>
+                <div class="config-option">
+                    <label>Background Color:</label>
+                    <input type="color" id="background-color" value="#ffffff">
+                </div>
+                <div class="config-option">
+                    <label>Text Color:</label>
+                    <input type="color" id="text-color" value="#000000">
+                </div>
+                <div class="config-option">
+                    <label>Accent Color:</label>
+                    <input type="color" id="accent-color" value="#333333">
+                </div>
+            </div>
+            
             <div class="sidebar-section">
                 <button class="btn sidebar-btn" id="preview-button">
                     <i class="fas fa-eye"></i> Jump to Preview

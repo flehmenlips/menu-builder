@@ -1,6 +1,7 @@
 let sectionCounter = 0;
 let itemCounter = 0;
 let spacerCounter = 0;
+let currentLogoPath = null;
 
 // Load Google Fonts dynamically
 function loadFont(font) {
@@ -424,11 +425,17 @@ function updateProgress() {
     document.getElementById('progress').textContent = `Progress: ${Math.round(progress)}%`;
 }
 
-// Update configuration options
+// Configure menu defaults
 let config = {
     showDollarSign: true,
+    showDecimals: true,
     showSectionDividers: true,
-    showDecimals: true
+    logoPath: null,
+    logoPosition: 'top',
+    logoSize: 'medium',
+    backgroundColor: '#ffffff',
+    textColor: '#000000',
+    accentColor: '#333333'
 };
 
 // Function to properly encode special characters
@@ -467,7 +474,7 @@ function encodeSpecialChars(text) {
         .replace(/Ç/g, '&Ccedil;');
 }
 
-// Update the preview function
+// Update the preview function to include logo
 function updatePreview() {
     const preview = document.getElementById('menu-preview');
     preview.innerHTML = '';
@@ -476,20 +483,61 @@ function updatePreview() {
     const subtitle = encodeSpecialChars(document.getElementById('subtitle').value);
     const layout = document.getElementById('layout-select').value;
 
+    // Set background color
+    preview.style.backgroundColor = config.backgroundColor;
+    preview.style.color = config.textColor;
+    
+    // Create menu content div
+    const menuContent = document.createElement('div');
+    menuContent.className = 'menu-content';
+    
+    // Add logo if available and not set to none
+    if (config.logoPath && config.logoPosition !== 'none') {
+        const logoContainer = document.createElement('div');
+        logoContainer.className = `logo-container logo-${config.logoPosition} logo-${config.logoSize}`;
+        
+        const logoImg = document.createElement('img');
+        logoImg.src = config.logoPath;
+        logoImg.alt = 'Restaurant Logo';
+        logoImg.className = 'menu-logo';
+        
+        logoContainer.appendChild(logoImg);
+        
+        // Add logo to appropriate position
+        if (config.logoPosition === 'top') {
+            preview.appendChild(logoContainer);
+        } else if (config.logoPosition === 'title') {
+            // Will be added alongside title
+        }
+    }
+
     if (title) {
+        const titleContainer = document.createElement('div');
+        titleContainer.className = 'title-container';
+        
+        // If logo position is set to title, add it alongside the title
+        if (config.logoPath && config.logoPosition === 'title') {
+            const logoImg = document.createElement('img');
+            logoImg.src = config.logoPath;
+            logoImg.alt = 'Restaurant Logo';
+            logoImg.className = `menu-logo logo-${config.logoSize}`;
+            titleContainer.appendChild(logoImg);
+        }
+        
         const titleElement = document.createElement('h1');
         titleElement.innerHTML = title;
-        preview.appendChild(titleElement);
+        titleElement.style.color = config.textColor;
+        titleContainer.appendChild(titleElement);
+        
+        preview.appendChild(titleContainer);
     }
 
     if (subtitle) {
         const subtitleElement = document.createElement('h2');
         subtitleElement.innerHTML = subtitle;
+        subtitleElement.style.color = config.textColor;
         preview.appendChild(subtitleElement);
     }
-
-    const menuContent = document.createElement('div');
-    menuContent.className = 'menu-content';
 
     // Get all elements and sort them by their current order
     let elements = Array.from(document.getElementById('sections').children)
@@ -759,6 +807,39 @@ function generateHTML(forPrint = false) {
         rightColumnHTML = generateElementsHTML(elements.slice(Math.ceil(elements.length / 2)));
     }
     
+    // Logo HTML - use server side path for full URL in new tab
+    let logoHTML = '';
+    if (config.logoPath && config.logoPosition !== 'none') {
+        const logoClass = `logo-${config.logoPosition} logo-${config.logoSize}`;
+        const logoSrc = config.logoPath;
+        
+        if (config.logoPosition === 'top') {
+            logoHTML = `
+                <div class="logo-container ${logoClass}">
+                    <img src="${logoSrc}" alt="Restaurant Logo" class="menu-logo">
+                </div>
+            `;
+        }
+    }
+    
+    // Title HTML with potential logo
+    let titleHTML = '';
+    if (title) {
+        if (config.logoPath && config.logoPosition === 'title') {
+            const logoClass = `logo-${config.logoSize}`;
+            const logoSrc = config.logoPath;
+            
+            titleHTML = `
+                <div class="title-container">
+                    <img src="${logoSrc}" alt="Restaurant Logo" class="menu-logo ${logoClass}">
+                    <h1>${title}</h1>
+                </div>
+            `;
+        } else {
+            titleHTML = `<h1>${title}</h1>`;
+        }
+    }
+    
     // Create the final HTML with table layout
     const html = `
         <!DOCTYPE html>
@@ -778,8 +859,8 @@ function generateHTML(forPrint = false) {
                     font-family: '${fontFamily}', serif;
                     margin: 0;
                     padding: 0;
-                    background-color: white;
-                    color: #333;
+                    background-color: ${config.backgroundColor};
+                    color: ${config.textColor};
                 }
                 
                 .menu-container {
@@ -792,6 +873,7 @@ function generateHTML(forPrint = false) {
                     text-align: center;
                     margin: 0.25in 0;
                     font-weight: normal;
+                    color: ${config.textColor};
                 }
                 
                 h1 {
@@ -804,6 +886,38 @@ function generateHTML(forPrint = false) {
                     margin-bottom: 0.3in;
                 }
                 
+                .logo-container {
+                    text-align: center;
+                    margin-bottom: 0.25in;
+                }
+                
+                .logo-top {
+                    margin-top: 0.25in;
+                }
+                
+                .title-container {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 20px;
+                    margin: 0.25in 0;
+                }
+                
+                .menu-logo.logo-small {
+                    max-height: 0.75in;
+                    max-width: 1.5in;
+                }
+                
+                .menu-logo.logo-medium {
+                    max-height: 1.25in;
+                    max-width: 2.5in;
+                }
+                
+                .menu-logo.logo-large {
+                    max-height: 2in;
+                    max-width: 4in;
+                }
+                
                 table {
                     width: 100%;
                     border-collapse: collapse;
@@ -811,6 +925,35 @@ function generateHTML(forPrint = false) {
                 
                 .menu-content {
                     width: 100%;
+                }
+                
+                .section-header h2 {
+                    font-size: 18pt;
+                    margin: 0.2in 0;
+                    text-align: center;
+                    color: ${config.textColor};
+                }
+                
+                .menu-item .item-name {
+                    font-weight: bold;
+                    color: ${config.textColor};
+                }
+                
+                .menu-item .item-description {
+                    font-size: 10pt;
+                    font-style: italic;
+                    color: ${config.textColor};
+                }
+                
+                .menu-item .item-price {
+                    font-weight: bold;
+                    color: ${config.accentColor};
+                }
+                
+                .section-divider hr {
+                    border: none;
+                    border-top: 1px solid ${config.accentColor};
+                    margin: 15px 0;
                 }
                 
                 .print-button {
@@ -860,7 +1003,8 @@ function generateHTML(forPrint = false) {
         <body>
             <button class="print-button" onclick="printMenu()">Print Menu</button>
             <div class="menu-container">
-                ${title ? `<h1>${encodeSpecialChars(title)}</h1>` : ''}
+                ${logoHTML}
+                ${titleHTML}
                 ${subtitle ? `<h2>${encodeSpecialChars(subtitle)}</h2>` : ''}
                 <table class="menu-content">
                     ${layout === 'split' ? `
@@ -977,6 +1121,12 @@ function getMenuState() {
         showDollarSign: config.showDollarSign,
         showDecimals: config.showDecimals,
         showSectionDividers: config.showSectionDividers,
+        logoPath: config.logoPath,
+        logoPosition: config.logoPosition,
+        logoSize: config.logoSize,
+        backgroundColor: config.backgroundColor,
+        textColor: config.textColor,
+        accentColor: config.accentColor,
         elements: elements
     };
 }
@@ -1020,11 +1170,33 @@ async function loadMenu(menuName) {
             config.showDollarSign = menuData.show_dollar_sign !== undefined ? menuData.show_dollar_sign : true;
             config.showDecimals = menuData.show_decimals !== undefined ? menuData.show_decimals : true;
             config.showSectionDividers = menuData.show_section_dividers !== undefined ? menuData.show_section_dividers : true;
+            config.logoPath = menuData.logo_path || null;
+            config.logoPosition = menuData.logo_position || 'top';
+            config.logoSize = menuData.logo_size || 'medium';
+            config.backgroundColor = menuData.background_color || '#ffffff';
+            config.textColor = menuData.text_color || '#000000';
+            config.accentColor = menuData.accent_color || '#333333';
             
-            // Update configuration controls
+            // Update UI elements with loaded settings
             document.getElementById('show-dollar-sign').checked = config.showDollarSign;
             document.getElementById('show-decimals').checked = config.showDecimals;
             document.getElementById('show-dividers').checked = config.showSectionDividers;
+            document.getElementById('logo-position').value = config.logoPosition;
+            document.getElementById('logo-size').value = config.logoSize;
+            document.getElementById('background-color').value = config.backgroundColor;
+            document.getElementById('text-color').value = config.textColor;
+            document.getElementById('accent-color').value = config.accentColor;
+            
+            // Update logo preview
+            if (config.logoPath) {
+                const logoPreview = document.getElementById('logo-preview');
+                logoPreview.src = config.logoPath;
+                logoPreview.style.display = 'block';
+            } else {
+                // Show placeholder or empty state
+                const logoPreview = document.getElementById('logo-preview');
+                logoPreview.src = '/images/placeholder-logo.png';
+            }
 
             document.getElementById('sections').innerHTML = '';
             
@@ -1093,7 +1265,7 @@ document.getElementById('save-menu').addEventListener('click', async () => {
         return;
     }
 
-    // Get all elements (sections and spacers) in their current order
+    // Get all elements
     const elements = Array.from(document.getElementById('sections').children)
         .map((element, index) => {
             const elementType = element.dataset.type || 'section';
@@ -1132,7 +1304,13 @@ document.getElementById('save-menu').addEventListener('click', async () => {
         showDollarSign: config.showDollarSign,
         showDecimals: config.showDecimals,
         showSectionDividers: config.showSectionDividers,
-        elements: elements
+        elements: elements,
+        logoPath: config.logoPath,
+        logoPosition: config.logoPosition,
+        logoSize: config.logoSize,
+        backgroundColor: config.backgroundColor,
+        textColor: config.textColor,
+        accentColor: config.accentColor
     };
 
     try {
@@ -1648,6 +1826,64 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         markChangesSaved();
     }, 100);
+
+    // Initialize logo upload
+    const logoUploadInput = document.getElementById('logo-upload');
+    if (logoUploadInput) {
+        logoUploadInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                handleLogoUpload(e.target.files[0]);
+            }
+        });
+    }
+    
+    // Initialize logo position dropdown
+    const logoPositionSelect = document.getElementById('logo-position');
+    if (logoPositionSelect) {
+        logoPositionSelect.addEventListener('change', (e) => {
+            config.logoPosition = e.target.value;
+            updatePreview();
+            markUnsavedChanges();
+        });
+    }
+    
+    // Initialize logo size dropdown
+    const logoSizeSelect = document.getElementById('logo-size');
+    if (logoSizeSelect) {
+        logoSizeSelect.addEventListener('change', (e) => {
+            config.logoSize = e.target.value;
+            updatePreview();
+            markUnsavedChanges();
+        });
+    }
+    
+    // Initialize color pickers
+    const backgroundColorInput = document.getElementById('background-color');
+    if (backgroundColorInput) {
+        backgroundColorInput.addEventListener('change', (e) => {
+            config.backgroundColor = e.target.value;
+            updatePreview();
+            markUnsavedChanges();
+        });
+    }
+    
+    const textColorInput = document.getElementById('text-color');
+    if (textColorInput) {
+        textColorInput.addEventListener('change', (e) => {
+            config.textColor = e.target.value;
+            updatePreview();
+            markUnsavedChanges();
+        });
+    }
+    
+    const accentColorInput = document.getElementById('accent-color');
+    if (accentColorInput) {
+        accentColorInput.addEventListener('change', (e) => {
+            config.accentColor = e.target.value;
+            updatePreview();
+            markUnsavedChanges();
+        });
+    }
 });
 
 // Add a spacer element
@@ -1821,4 +2057,48 @@ function deleteSpacer(spacerId) {
         document.getElementById(spacerId).remove();
         updatePreview();
     }
+}
+
+// Handle logo upload
+function handleLogoUpload(file) {
+    if (!file) return;
+    
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml'];
+    if (!validTypes.includes(file.type)) {
+        alert('Please upload a valid image file (JPG, PNG, GIF, or SVG)');
+        return;
+    }
+    
+    // Create form data for upload
+    const formData = new FormData();
+    formData.append('logo', file);
+    
+    // Show upload in progress
+    const logoPreview = document.getElementById('logo-preview');
+    logoPreview.src = '/images/uploading.gif';
+    
+    // Upload to server
+    fetch('/api/upload-logo', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update preview and config
+            logoPreview.src = data.logoPath;
+            config.logoPath = data.logoPath;
+            markUnsavedChanges();
+            updatePreview();
+        } else {
+            alert('Error uploading logo: ' + (data.error || 'Unknown error'));
+            logoPreview.src = config.logoPath || '/images/placeholder-logo.png';
+        }
+    })
+    .catch(error => {
+        console.error('Error uploading logo:', error);
+        alert('Error uploading logo. Please try again.');
+        logoPreview.src = config.logoPath || '/images/placeholder-logo.png';
+    });
 } 
