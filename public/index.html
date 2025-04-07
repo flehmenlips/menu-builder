@@ -3,294 +3,502 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Menu Builder Pro - Create Beautiful Restaurant Menus</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="landing.css">
+    <title id="site-title">Menu Builder Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4a6bfa;
+            --secondary-color: #f97316;
+            --text-color: #374151;
+            --light-bg: #f3f4f6;
+            --dark-bg: #1f2937;
+            --border-radius: 0.375rem;
+            --box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+        
+        /* Header */
+        header {
+            background-color: white;
+            box-shadow: var(--box-shadow);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .logo img {
+            height: 40px;
+        }
+        
+        .logo h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+        
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-color);
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        
+        .nav-links a:hover {
+            color: var(--primary-color);
+        }
+        
+        .auth-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .auth-buttons a {
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius);
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .login-btn {
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+        }
+        
+        .login-btn:hover {
+            background-color: #f0f4ff;
+        }
+        
+        .signup-btn {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .signup-btn:hover {
+            background-color: #3a5ad9;
+        }
+        
+        /* Hero Section */
+        .hero {
+            background-color: var(--light-bg);
+            padding: 4rem 0;
+            text-align: center;
+        }
+        
+        .hero h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: var(--dark-bg);
+        }
+        
+        .hero p {
+            font-size: 1.25rem;
+            margin-bottom: 2rem;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            color: #4b5563;
+        }
+        
+        .hero-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+        
+        .hero-buttons a {
+            text-decoration: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--border-radius);
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .primary-btn {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .primary-btn:hover {
+            background-color: #3a5ad9;
+        }
+        
+        .secondary-btn {
+            background-color: white;
+            color: var(--text-color);
+            border: 1px solid #d1d5db;
+        }
+        
+        .secondary-btn:hover {
+            background-color: #f3f4f6;
+        }
+        
+        /* Features Section */
+        .features {
+            padding: 4rem 0;
+        }
+        
+        .section-title {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .section-title h2 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: var(--dark-bg);
+        }
+        
+        .section-title p {
+            color: #6b7280;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        
+        .feature-card {
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 2rem;
+            transition: transform 0.3s;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            background-color: #eef2ff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .feature-icon i {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+        }
+        
+        .feature-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: var(--dark-bg);
+        }
+        
+        /* Footer */
+        footer {
+            background-color: var(--dark-bg);
+            color: white;
+            padding: 3rem 0;
+        }
+        
+        .footer-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+        }
+        
+        .footer-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .footer-logo img {
+            height: 40px;
+        }
+        
+        .footer-logo h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: white;
+        }
+        
+        .footer-section h3 {
+            font-size: 1.25rem;
+            margin-bottom: 1.5rem;
+            color: white;
+        }
+        
+        .footer-links {
+            list-style: none;
+        }
+        
+        .footer-links li {
+            margin-bottom: 0.75rem;
+        }
+        
+        .footer-links a {
+            text-decoration: none;
+            color: #d1d5db;
+            transition: color 0.3s;
+        }
+        
+        .footer-links a:hover {
+            color: white;
+        }
+        
+        .footer-bottom {
+            margin-top: 3rem;
+            text-align: center;
+            color: #9ca3af;
+            font-size: 0.875rem;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-container {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .nav-links, .auth-buttons {
+                flex-direction: column;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            
+            .hero h2 {
+                font-size: 2rem;
+            }
+            
+            .hero p {
+                font-size: 1rem;
+            }
+            
+            .hero-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
 </head>
 <body>
-    <header class="main-header">
-        <div class="container">
+    <header>
+        <div class="container header-container">
             <div class="logo">
-                <img src="/images/menu-builder-logo.png" alt="Menu Builder Pro Logo">
-                <h1>Menu Builder <span>Pro</span></h1>
+                <img id="site-logo" src="uploads/default-logo.png" alt="Menu Builder Pro">
+                <h1 id="site-name">Menu Builder Pro</h1>
             </div>
-            <nav>
-                <ul>
-                    <li><a href="#features">Features</a></li>
-                    <li><a href="#pricing">Pricing</a></li>
-                    <li><a href="#testimonials">Testimonials</a></li>
-                    <li><a href="#contact">Contact</a></li>
-                </ul>
+            
+            <nav class="nav-links">
+                <a href="#">Features</a>
+                <a href="#">Pricing</a>
+                <a href="#">Templates</a>
+                <a href="#">Resources</a>
             </nav>
+            
             <div class="auth-buttons">
-                <a href="/login.html" class="btn btn-outline">Login</a>
-                <a href="/register.html" class="btn btn-primary">Sign Up</a>
+                <a href="/login.html" class="login-btn">Log In</a>
+                <a href="/register.html" class="signup-btn">Sign Up</a>
             </div>
         </div>
     </header>
-
+    
     <section class="hero">
         <div class="container">
-            <div class="hero-content">
-                <h1>Create Beautiful Restaurant Menus in Minutes</h1>
-                <p>Design professional, customizable menus for your restaurant or food business with our easy-to-use menu builder.</p>
-                <div class="cta-buttons">
-                    <a href="/register.html" class="btn btn-primary btn-large">Get Started - It's Free</a>
-                    <a href="/menu-builder" class="btn btn-outline btn-large">Try Demo</a>
-                </div>
-            </div>
-            <div class="hero-image">
-                <img src="/images/menu-showcase.png" alt="Menu Builder Interface">
+            <h2 id="hero-title">Create Beautiful Restaurant Menus in Minutes</h2>
+            <p id="hero-tagline">Design, customize, and download professional-quality menus with our easy-to-use platform. No design skills required.</p>
+            
+            <div class="hero-buttons">
+                <a href="/register.html" class="primary-btn">Get Started for Free</a>
+                <a href="#features" class="secondary-btn">See Features</a>
             </div>
         </div>
     </section>
-
+    
     <section id="features" class="features">
         <div class="container">
-            <h2 class="section-title">Features</h2>
-            <div class="feature-grid">
+            <div class="section-title">
+                <h2>Powerful Features</h2>
+                <p>Everything you need to create stunning, professional restaurant menus</p>
+            </div>
+            
+            <div class="features-grid">
                 <div class="feature-card">
                     <div class="feature-icon">
                         <i class="fas fa-paint-brush"></i>
                     </div>
-                    <h3>Beautiful Designs</h3>
-                    <p>Choose from professional templates and customize colors, fonts, and layouts.</p>
+                    <h3>Beautiful Templates</h3>
+                    <p>Choose from dozens of professionally designed templates for any restaurant type or cuisine.</p>
                 </div>
+                
                 <div class="feature-card">
                     <div class="feature-icon">
-                        <i class="fas fa-mobile-alt"></i>
+                        <i class="fas fa-sliders-h"></i>
                     </div>
-                    <h3>Mobile Responsive</h3>
-                    <p>Menus look great on any device, perfect for digital and print formats.</p>
+                    <h3>Easy Customization</h3>
+                    <p>Customize colors, fonts, layouts, and more with our intuitive drag-and-drop editor.</p>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-print"></i>
-                    </div>
-                    <h3>Print Ready</h3>
-                    <p>Export high-quality PDF menus or print directly from your browser.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-image"></i>
-                    </div>
-                    <h3>Logo Integration</h3>
-                    <p>Easily upload your restaurant logo and position it on your menu.</p>
-                </div>
+                
                 <div class="feature-card">
                     <div class="feature-icon">
                         <i class="fas fa-sync-alt"></i>
                     </div>
                     <h3>Real-time Preview</h3>
-                    <p>See changes instantly with a live preview as you edit your menu.</p>
+                    <p>See changes instantly as you make them, ensuring your menu looks perfect.</p>
                 </div>
+                
                 <div class="feature-card">
                     <div class="feature-icon">
-                        <i class="fas fa-cloud-upload-alt"></i>
+                        <i class="fas fa-mobile-alt"></i>
                     </div>
-                    <h3>Automatic Saving</h3>
-                    <p>Never lose your work with automatic saving and versioning.</p>
+                    <h3>Digital & Print Ready</h3>
+                    <p>Export your menu in multiple formats for web, mobile, and print use.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-cloud"></i>
+                    </div>
+                    <h3>Cloud Storage</h3>
+                    <p>Save your menus securely in the cloud and access them from anywhere.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-qrcode"></i>
+                    </div>
+                    <h3>QR Code Generation</h3>
+                    <p>Generate QR codes for contactless viewing of your digital menus.</p>
                 </div>
             </div>
         </div>
     </section>
-
-    <section class="cta-section">
+    
+    <footer>
         <div class="container">
-            <h2>Ready to Create Your Menu?</h2>
-            <p>Sign up today and have your first professional menu ready in minutes.</p>
-            <a href="/register.html" class="btn btn-primary btn-large">Get Started Free</a>
-        </div>
-    </section>
-
-    <section id="pricing" class="pricing">
-        <div class="container">
-            <h2 class="section-title">Simple, Transparent Pricing</h2>
-            <div class="pricing-grid">
-                <div class="pricing-card">
-                    <div class="pricing-header">
-                        <h3>Free</h3>
-                        <div class="price">$0<span>/month</span></div>
+            <div class="footer-container">
+                <div class="footer-section">
+                    <div class="footer-logo">
+                        <img id="footer-logo" src="uploads/default-logo.png" alt="Menu Builder Pro">
+                        <h2 id="footer-name">Menu Builder Pro</h2>
                     </div>
-                    <ul class="pricing-features">
-                        <li><i class="fas fa-check"></i> 2 Menu Templates</li>
-                        <li><i class="fas fa-check"></i> Basic Customization</li>
-                        <li><i class="fas fa-check"></i> Up to 3 Saved Menus</li>
-                        <li><i class="fas fa-check"></i> PDF Export</li>
-                        <li><i class="fas fa-times"></i> Logo Integration</li>
-                        <li><i class="fas fa-times"></i> Premium Templates</li>
-                    </ul>
-                    <a href="/register.html" class="btn btn-outline btn-block">Sign Up Free</a>
+                    <p id="footer-tagline">Create Beautiful Restaurant Menus in Minutes</p>
                 </div>
-                <div class="pricing-card featured">
-                    <div class="pricing-tag">Most Popular</div>
-                    <div class="pricing-header">
-                        <h3>Pro</h3>
-                        <div class="price">$9.99<span>/month</span></div>
-                    </div>
-                    <ul class="pricing-features">
-                        <li><i class="fas fa-check"></i> All Templates</li>
-                        <li><i class="fas fa-check"></i> Advanced Customization</li>
-                        <li><i class="fas fa-check"></i> Unlimited Saved Menus</li>
-                        <li><i class="fas fa-check"></i> PDF & High Res Export</li>
-                        <li><i class="fas fa-check"></i> Logo Integration</li>
-                        <li><i class="fas fa-check"></i> Premium Support</li>
+                
+                <div class="footer-section">
+                    <h3>Product</h3>
+                    <ul class="footer-links">
+                        <li><a href="#">Features</a></li>
+                        <li><a href="#">Pricing</a></li>
+                        <li><a href="#">Templates</a></li>
+                        <li><a href="#">Resources</a></li>
                     </ul>
-                    <a href="/register.html?plan=pro" class="btn btn-primary btn-block">Try Pro Free for 14 Days</a>
                 </div>
-                <div class="pricing-card">
-                    <div class="pricing-header">
-                        <h3>Business</h3>
-                        <div class="price">$19.99<span>/month</span></div>
-                    </div>
-                    <ul class="pricing-features">
-                        <li><i class="fas fa-check"></i> Everything in Pro</li>
-                        <li><i class="fas fa-check"></i> Multi-Location Support</li>
-                        <li><i class="fas fa-check"></i> QR Code Menu Integration</li>
-                        <li><i class="fas fa-check"></i> API Access</li>
-                        <li><i class="fas fa-check"></i> Team Collaboration</li>
-                        <li><i class="fas fa-check"></i> Priority Support</li>
+                
+                <div class="footer-section">
+                    <h3>Company</h3>
+                    <ul class="footer-links">
+                        <li><a href="#">About Us</a></li>
+                        <li><a href="#">Blog</a></li>
+                        <li><a href="#">Careers</a></li>
+                        <li><a href="#">Contact</a></li>
                     </ul>
-                    <a href="/register.html?plan=business" class="btn btn-outline btn-block">Contact Sales</a>
+                </div>
+                
+                <div class="footer-section">
+                    <h3>Support</h3>
+                    <ul class="footer-links">
+                        <li><a href="#">Help Center</a></li>
+                        <li><a href="#">Documentation</a></li>
+                        <li><a href="#">Community</a></li>
+                        <li><a href="#">Status</a></li>
+                    </ul>
                 </div>
             </div>
-        </div>
-    </section>
-
-    <section id="testimonials" class="testimonials">
-        <div class="container">
-            <h2 class="section-title">What Our Customers Say</h2>
-            <div class="testimonial-grid">
-                <div class="testimonial-card">
-                    <div class="testimonial-content">
-                        <p>"Menu Builder Pro transformed our restaurant's image. We can now update our menus seasonally with minimal effort, and our customers love the professional look."</p>
-                    </div>
-                    <div class="testimonial-author">
-                        <img src="/images/testimonial-1.jpg" alt="Emily Chen">
-                        <div>
-                            <h4>Emily Chen</h4>
-                            <p>Owner, The Green Plate Bistro</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="testimonial-card">
-                    <div class="testimonial-content">
-                        <p>"As a small café owner, I don't have time to learn complex design software. This tool makes it incredibly easy to create beautiful menus that match our brand."</p>
-                    </div>
-                    <div class="testimonial-author">
-                        <img src="/images/testimonial-2.jpg" alt="Michael Rodriguez">
-                        <div>
-                            <h4>Michael Rodriguez</h4>
-                            <p>Owner, Sunrise Coffee Co.</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="testimonial-card">
-                    <div class="testimonial-content">
-                        <p>"The ability to quickly update prices and items has been a game-changer for our busy restaurant. We love how simple it is to maintain multiple menus."</p>
-                    </div>
-                    <div class="testimonial-author">
-                        <img src="/images/testimonial-3.jpg" alt="Sarah Johnson">
-                        <div>
-                            <h4>Sarah Johnson</h4>
-                            <p>Manager, Urban Table Restaurant</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section id="contact" class="contact">
-        <div class="container">
-            <h2 class="section-title">Contact Us</h2>
-            <div class="contact-grid">
-                <div class="contact-info">
-                    <div class="contact-item">
-                        <i class="fas fa-envelope"></i>
-                        <p>support@menubuilder.pro</p>
-                    </div>
-                    <div class="contact-item">
-                        <i class="fas fa-phone"></i>
-                        <p>+1 (555) 123-4567</p>
-                    </div>
-                    <div class="contact-item">
-                        <i class="fas fa-map-marker-alt"></i>
-                        <p>123 Main Street, San Francisco, CA 94110</p>
-                    </div>
-                    <div class="social-links">
-                        <a href="#" class="social-link"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
-                        <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
-                        <a href="#" class="social-link"><i class="fab fa-linkedin-in"></i></a>
-                    </div>
-                </div>
-                <form class="contact-form">
-                    <div class="form-group">
-                        <label for="name">Name</label>
-                        <input type="text" id="name" name="name" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="email">Email</label>
-                        <input type="email" id="email" name="email" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="subject">Subject</label>
-                        <input type="text" id="subject" name="subject" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="message">Message</label>
-                        <textarea id="message" name="message" rows="5" required></textarea>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-block">Send Message</button>
-                </form>
-            </div>
-        </div>
-    </section>
-
-    <footer class="main-footer">
-        <div class="container">
-            <div class="footer-grid">
-                <div class="footer-logo">
-                    <img src="/images/menu-builder-logo.png" alt="Menu Builder Pro Logo">
-                    <h3>Menu Builder <span>Pro</span></h3>
-                    <p>Create beautiful restaurant menus in minutes with our easy-to-use menu builder.</p>
-                </div>
-                <div class="footer-links">
-                    <h4>Quick Links</h4>
-                    <ul>
-                        <li><a href="#features">Features</a></li>
-                        <li><a href="#pricing">Pricing</a></li>
-                        <li><a href="#testimonials">Testimonials</a></li>
-                        <li><a href="/menu-builder">Try Demo</a></li>
-                        <li><a href="/login.html">Login</a></li>
-                        <li><a href="/register.html">Sign Up</a></li>
-                    </ul>
-                </div>
-                <div class="footer-links">
-                    <h4>Legal</h4>
-                    <ul>
-                        <li><a href="/terms.html">Terms of Service</a></li>
-                        <li><a href="/privacy.html">Privacy Policy</a></li>
-                        <li><a href="/cookies.html">Cookie Policy</a></li>
-                    </ul>
-                </div>
-                <div class="footer-newsletter">
-                    <h4>Stay Updated</h4>
-                    <p>Subscribe to our newsletter for tips, new features, and updates.</p>
-                    <form class="newsletter-form">
-                        <input type="email" placeholder="Your email address" required>
-                        <button type="submit" class="btn btn-primary">Subscribe</button>
-                    </form>
-                </div>
-            </div>
+            
             <div class="footer-bottom">
-                <p>&copy; 2023 Menu Builder Pro. All rights reserved.</p>
+                <p>&copy; <span id="current-year">2023</span> Menu Builder Pro. All rights reserved.</p>
             </div>
         </div>
     </footer>
-
-    <script src="landing.js"></script>
+    
+    <script>
+        // Set current year in footer
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+        
+        // Load site settings
+        fetch('/api/content/section/general')
+            .then(response => response.json())
+            .then(data => {
+                // Update site content based on settings
+                data.forEach(content => {
+                    if (content.identifier === 'site_name') {
+                        // Update site name in multiple places
+                        document.getElementById('site-title').textContent = content.content;
+                        document.getElementById('site-name').textContent = content.content;
+                        document.getElementById('footer-name').textContent = content.content;
+                    }
+                    
+                    if (content.identifier === 'site_tagline') {
+                        // Update tagline in multiple places
+                        document.getElementById('hero-title').textContent = content.content;
+                        document.getElementById('footer-tagline').textContent = content.content;
+                    }
+                    
+                    if (content.identifier === 'hero_tagline') {
+                        document.getElementById('hero-tagline').textContent = content.content;
+                    }
+                    
+                    if (content.identifier === 'logo_path' && content.content) {
+                        // Update logo in multiple places
+                        document.getElementById('site-logo').src = content.content;
+                        document.getElementById('footer-logo').src = content.content;
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error loading site settings:', error);
+            });
+    </script>
 </body>
 </html> 

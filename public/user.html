@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menu Builder - User Portal</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="user-container">
+        <!-- User Login Form -->
+        <div id="user-login-container" class="login-container">
+            <h1>User Login</h1>
+            <form id="user-login-form" onsubmit="handleUserLogin(event)">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit">Login</button>
+            </form>
+            <div id="login-message" class="message"></div>
+            <div class="login-links">
+                <a href="#" id="forgot-password">Forgot Password?</a>
+                <a href="#" id="create-account">Create Account</a>
+            </div>
+        </div>
+
+        <!-- User Registration Form -->
+        <div id="user-register-container" class="register-container" style="display: none;">
+            <h1>Create Account</h1>
+            <form id="user-register-form" onsubmit="handleUserRegistration(event)">
+                <div class="form-group">
+                    <label for="name">Name</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirm-password">Confirm Password</label>
+                    <input type="password" id="confirm-password" name="confirm_password" required>
+                </div>
+                <button type="submit">Create Account</button>
+            </form>
+            <div id="register-message" class="message"></div>
+            <div class="register-links">
+                <a href="#" id="back-to-login">Back to Login</a>
+            </div>
+        </div>
+
+        <!-- User Dashboard -->
+        <div id="user-dashboard" class="dashboard" style="display: none;">
+            <header class="user-header">
+                <div class="header-left">
+                    <h1>User Portal</h1>
+                </div>
+                <div class="header-right">
+                    <div class="user-info">
+                        <span id="user-name">User Name</span>
+                        <span id="user-plan-badge" class="badge">Plan</span>
+                    </div>
+                    <button id="logout-btn">Logout</button>
+                </div>
+            </header>
+
+            <nav class="user-nav">
+                <ul>
+                    <li><a href="#dashboard" class="nav-link active" data-section="dashboard">Dashboard</a></li>
+                    <li><a href="#menus" class="nav-link" data-section="menus">Menus</a></li>
+                    <li><a href="#templates" class="nav-link" data-section="templates">Templates</a></li>
+                    <li><a href="#profile" class="nav-link" data-section="profile">Profile</a></li>
+                    <li><a href="#billing" class="nav-link" data-section="billing">Billing</a></li>
+                </ul>
+            </nav>
+
+            <main class="user-content">
+                <!-- Dashboard Section -->
+                <section id="dashboard-section" class="content-section active">
+                    <h2>Dashboard Overview</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h3>Total Menus</h3>
+                            <p id="total-menus">0</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Active Menus</h3>
+                            <p id="active-menus">0</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Menu Views</h3>
+                            <p id="menu-views">0</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Storage Used</h3>
+                            <p id="storage-used">0 MB</p>
+                        </div>
+                    </div>
+                    <div class="recent-activity">
+                        <h3>Recent Activity</h3>
+                        <div id="activity-list" class="activity-list">
+                            <div class="activity-item">
+                                <div class="activity-content">
+                                    <p>No recent activity</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Menus Section -->
+                <section id="menus-section" class="content-section">
+                    <div class="section-header">
+                        <h2>My Menus</h2>
+                        <button id="create-menu-btn" class="btn-primary">Create New Menu</button>
+                    </div>
+                    <div class="menus-grid" id="menus-grid">
+                        <div class="menu-card loading">
+                            <div class="menu-header">
+                                <h3>Loading menus...</h3>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Templates Section -->
+                <section id="templates-section" class="content-section">
+                    <div class="section-header">
+                        <h2>Templates</h2>
+                        <div class="template-filters">
+                            <select id="template-category">
+                                <option value="all">All Categories</option>
+                                <option value="restaurant">Restaurant</option>
+                                <option value="cafe">Cafe</option>
+                                <option value="bar">Bar</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="templates-grid" id="templates-grid">
+                        <div class="template-card loading">
+                            <div class="template-header">
+                                <h3>Loading templates...</h3>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Profile Section -->
+                <section id="profile-section" class="content-section">
+                    <h2>Company Profile & Settings</h2>
+                    <div id="profile-message" class="message"></div>
+                    <form id="profile-form">
+                        <div class="profile-grid">
+                            <div class="profile-details">
+                                <h3>Company Information</h3>
+                                <div class="form-group">
+                                    <label for="company-name">Company Name</label>
+                                    <input type="text" id="company-name" name="company-name">
+                                </div>
+                                <div class="form-group">
+                                    <label for="company-address">Address</label>
+                                    <textarea id="company-address" name="company-address" rows="3"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="company-phone">Phone</label>
+                                    <input type="tel" id="company-phone" name="company-phone">
+                                </div>
+                                <div class="form-group">
+                                    <label for="company-email">Contact Email</label>
+                                    <input type="email" id="company-email" name="company-email">
+                                </div>
+                                <div class="form-group">
+                                    <label for="company-website">Website</label>
+                                    <input type="url" id="company-website" name="company-website">
+                                </div>
+                            </div>
+                            <div class="profile-branding">
+                                <h3>Branding</h3>
+                                <div class="form-group">
+                                    <label for="company-logo-upload">Company Logo</label>
+                                    <input type="file" id="company-logo-upload" accept="image/*">
+                                    <img id="logo-preview" src="#" alt="Logo Preview" style="max-width: 150px; max-height: 100px; margin-top: 10px; display: none;">
+                                </div>
+                                <div class="form-group color-picker">
+                                    <label for="primary-color">Primary Color</label>
+                                    <input type="color" id="primary-color" name="primary-color" value="#4a6cf7">
+                                </div>
+                                <div class="form-group color-picker">
+                                    <label for="secondary-color">Secondary Color</label>
+                                    <input type="color" id="secondary-color" name="secondary-color" value="#6c757d">
+                                </div>
+                                <div class="form-group color-picker">
+                                    <label for="accent-color">Accent Color</label>
+                                    <input type="color" id="accent-color" name="accent-color" value="#343a40">
+                                </div>
+                                <div class="form-group">
+                                    <label for="default-font">Default Font</label>
+                                    <select id="default-font" name="default-font">
+                                        <option value="Arial">Arial</option>
+                                        <option value="Verdana">Verdana</option>
+                                        <option value="Helvetica">Helvetica</option>
+                                        <option value="Times New Roman">Times New Roman</option>
+                                        <option value="Georgia">Georgia</option>
+                                        <option value="Courier New">Courier New</option>
+                                        <option value="Playfair Display">Playfair Display</option>
+                                        <option value="Lato">Lato</option>
+                                        <option value="Montserrat">Montserrat</option>
+                                        <option value="Open Sans">Open Sans</option>
+                                        <option value="Roboto">Roboto</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-actions" style="margin-top: 20px;">
+                            <button type="submit" class="btn-primary">Save Profile</button>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- Billing Section -->
+                <section id="billing-section" class="content-section">
+                    <h2>Billing & Subscription</h2>
+                    <div class="subscription-info">
+                        <div class="current-plan">
+                            <h3>Current Plan</h3>
+                            <div class="plan-details">
+                                <span id="current-plan-name">Free Plan</span>
+                                <span id="current-plan-price">$0/month</span>
+                            </div>
+                            <div class="plan-features">
+                                <ul id="plan-features-list">
+                                    <li>Up to 3 menus</li>
+                                    <li>Basic templates</li>
+                                    <li>Standard support</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="upgrade-options">
+                            <h3>Upgrade Your Plan</h3>
+                            <div class="plans-grid">
+                                <div class="plan-card">
+                                    <div class="plan-header">
+                                        <h4>Pro</h4>
+                                        <div class="plan-price">
+                                            <span class="price">$9.99</span>
+                                            <span class="period">/month</span>
+                                        </div>
+                                    </div>
+                                    <ul class="plan-features">
+                                        <li>Unlimited menus</li>
+                                        <li>Premium templates</li>
+                                        <li>Priority support</li>
+                                        <li>Custom domain</li>
+                                    </ul>
+                                    <button class="btn-primary">Upgrade to Pro</button>
+                                </div>
+                                <div class="plan-card featured">
+                                    <div class="plan-header">
+                                        <h4>Business</h4>
+                                        <div class="plan-price">
+                                            <span class="price">$19.99</span>
+                                            <span class="period">/month</span>
+                                        </div>
+                                    </div>
+                                    <ul class="plan-features">
+                                        <li>Everything in Pro</li>
+                                        <li>Team collaboration</li>
+                                        <li>Advanced analytics</li>
+                                        <li>API access</li>
+                                    </ul>
+                                    <button class="btn-primary">Upgrade to Business</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="billing-history">
+                        <h3>Billing History</h3>
+                        <table id="billing-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="4" class="no-data">No billing history available</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Menu Editor Modal -->
+    <div id="menu-editor-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2 id="menu-editor-title">Create New Menu</h2>
+            <form id="menu-editor-form">
+                <input type="hidden" id="menu-id">
+                <div class="form-group">
+                    <label for="menu-name">Menu Name</label>
+                    <input type="text" id="menu-name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="menu-template">Template</label>
+                    <select id="menu-template" name="template" required>
+                        <option value="">Select a template</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="menu-category">Category</label>
+                    <select id="menu-category" name="category" required>
+                        <option value="restaurant">Restaurant</option>
+                        <option value="cafe">Cafe</option>
+                        <option value="bar">Bar</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="menu-description">Description</label>
+                    <textarea id="menu-description" name="description" rows="3"></textarea>
+                </div>
+                <div class="form-group checkbox">
+                    <input type="checkbox" id="menu-published" name="is_published">
+                    <label for="menu-published">Publish immediately</label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="menu-cancel-btn" class="btn-secondary">Cancel</button>
+                    <button type="button" id="menu-save-btn" class="btn-primary">Save</button>
+                    <button type="button" id="menu-delete-btn" class="btn-danger">Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="user.js"></script>
+</body>
+</html> 

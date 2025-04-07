@@ -72,46 +72,119 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check authentication status
     function checkAuthStatus() {
         // Get user from localStorage
-        const user = JSON.parse(localStorage.getItem('user') || 'null');
+        const userString = localStorage.getItem('user'); // Use 'user' key
+        const user = userString ? JSON.parse(userString) : null; // Parse the stored string
+        console.log("app-header: checkAuthStatus - User from localStorage:", user);
         
         // If no user is found in localStorage, redirect to login page
         if (!user) {
+            console.log("app-header: No user in localStorage, redirecting to login.html");
             window.location.href = '/login.html';
-            return;
+            return; // Stop execution
         }
         
-        // If user exists, verify with server
+        // If user exists locally, verify with server to ensure session is still valid
+        console.log("app-header: User found locally, verifying with server...");
         fetch('/api/auth/verify', {
             method: 'GET',
-            credentials: 'include'
+            credentials: 'include' // Send cookies
         })
-        .then(response => response.json())
+        .then(response => {
+             console.log("app-header: /api/auth/verify response status:", response.status);
+             if (!response.ok) {
+                 // Handle non-200 responses gracefully before trying to parse JSON
+                 throw new Error(`Verification failed with status: ${response.status}`);
+             }
+             return response.json();
+         })
         .then(data => {
-            if (!data.authenticated) {
-                // If not authenticated, redirect to login page
+             console.log("app-header: /api/auth/verify response data:", data);
+            if (!data.loggedIn) { // Check 'loggedIn' property
+                // If not authenticated server-side, clear local user and redirect
+                console.log("app-header: Server verification failed, clearing user and redirecting to login.html");
                 localStorage.removeItem('user');
                 window.location.href = '/login.html';
             } else {
-                // Update user name in the header
-                updateUserInfo(data.user || user);
+                // Server confirms user is logged in. Update header.
+                // Use the potentially updated user data from the verify response
+                 console.log("app-header: Server verification successful. Updating header.");
+                updateUserInfo(data.user || user); 
+                // Store potentially updated user data back in localStorage
+                if (data.user) {
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                }
             }
         })
         .catch(error => {
-            console.error('Authentication error:', error);
-            // Don't redirect on error to prevent issues with offline usage
+            console.error('app-header: Authentication verification error:', error);
+            // Optional: Decide if redirect should happen on network error
+            // For now, we allow the app to load using local data, might be stale.
+             console.log("app-header: Verification error, proceeding with potentially stale local user data.");
+             updateUserInfo(user); // Update header with local data on error
         });
     }
     
     // Update user info in header
     function updateUserInfo(user) {
-        const userNameElement = document.querySelector('.user-name');
-        
-        if (userNameElement && user) {
-            // Display user's name or email
-            userNameElement.textContent = user.name || user.email || 'My Account';
+        // Check if running in shadow DOM context (Web Component)
+        const root = this.shadowRoot || document; // Use shadowRoot if available, else document
+
+        const userNameElement = root.getElementById('user-name') || root.querySelector('.user-name'); // Try ID then class
+        const accountMenu = root.getElementById('account-menu') || root.querySelector('.user-dropdown');
+        const loginButton = root.getElementById('login-button') || root.querySelector('.login-button'); // Try ID then class
+
+        if (user) {
+            if (userNameElement) userNameElement.textContent = user.name || user.email || 'My Account';
+            if (accountMenu) accountMenu.style.display = 'block';
+            if (loginButton) loginButton.style.display = 'none';
+
+            // Update dropdown links
+            const profileLink = root.getElementById('profile-link');
+            const settingsLink = root.getElementById('settings-link');
+            const companyLink = root.getElementById('company-link');
+            const subscriptionLink = root.getElementById('subscription-link');
+
+            if(profileLink) profileLink.href = 'user.html#profile';
+            if(settingsLink) settingsLink.href = 'user.html#profile'; 
+            if(companyLink) companyLink.href = 'user.html#profile';
+            if(subscriptionLink) subscriptionLink.href = 'user.html#billing';
+
+        } else {
+            if (userNameElement) userNameElement.textContent = '';
+            if (accountMenu) accountMenu.style.display = 'none';
+            if (loginButton) loginButton.style.display = 'inline-block';
         }
     }
     
+    // Logout function needs to clear 'user' key
+    async function logout() { // Assuming this is called by an event listener
+        console.log('Logging out...');
+        try {
+            await fetch('/api/auth/logout', { 
+                method: 'POST', 
+                credentials: 'include' 
+            });
+        } catch (error) {
+            console.error('Server logout failed:', error);
+            // Proceed with client-side cleanup anyway
+        } finally {
+            localStorage.removeItem('user');  // Clear the 'user' key
+            localStorage.removeItem('userToken'); // Clear the old key too just in case
+            updateUserInfo(null);
+            console.log('Client-side logout complete, redirecting to login.html');
+            window.location.href = '/login.html'; 
+        }
+    }
+
+    // Ensure logout button listener calls the new logout function
+    const logoutLink = this.shadowRoot?.getElementById('logout-link') || document.getElementById('logout-link'); // Find logout link/button
+    if (logoutLink) {
+        logoutLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            logout();
+        });
+    }
+
     // Initialize
     checkAuthStatus();
     
