@@ -28,21 +28,21 @@
                 </div>
                 
                 <div class="config-option">
-                    <label>Logo Position:</label>
+                    <label for="logo-position">Logo Position:</label>
                     <select id="logo-position">
-                        <option value="top">Top (Above Title)</option>
+                        <option value="top">Top of Menu</option>
                         <option value="title">Next to Title</option>
                         <option value="none">Don't Show Logo</option>
                     </select>
                 </div>
                 
                 <div class="config-option">
-                    <label>Logo Size:</label>
-                    <select id="logo-size">
-                        <option value="small">Small</option>
-                        <option value="medium" selected>Medium</option>
-                        <option value="large">Large</option>
-                    </select>
+                    <label for="logo-size">Logo Size (width in pixels):</label>
+                    <div class="size-control">
+                        <input type="range" id="logo-size-slider" min="50" max="500" step="10" value="200">
+                        <input type="number" id="logo-size" min="50" max="1000" value="200">
+                    </div>
+                    <small>Recommended: 100-300px for most logos</small>
                 </div>
             </div>
             

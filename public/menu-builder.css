@@ -1058,4 +1058,46 @@ button:only-child .fas {
         margin-left: 0;
         width: 100%;
     }
+}
+
+/* Add styles for the size control interface */
+.size-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.size-control input[type="range"] {
+    flex: 1;
+    height: 5px;
+}
+
+.size-control input[type="number"] {
+    width: 70px;
+    text-align: center;
+}
+
+/* Update logo sizing for the menu preview */
+.menu-logo {
+    max-width: 200px; /* Default size */
+    height: auto;
+    display: block;
+}
+
+.logo-container {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.logo-top {
+    margin-top: 15px;
+}
+
+.title-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin: 15px 0;
 } 

@@ -22,7 +22,7 @@ db.serialize(() => {
             wrap_special_chars INTEGER DEFAULT 1,
             logo_path TEXT,
             logo_position TEXT DEFAULT 'top',
-            logo_size TEXT DEFAULT 'medium',
+            logo_size TEXT DEFAULT '200',
             background_color TEXT DEFAULT '#ffffff',
             text_color TEXT DEFAULT '#000000',
             accent_color TEXT DEFAULT '#333333',
@@ -146,6 +146,9 @@ const getSpacers = async (menuName) => {
 
 const createMenu = async (name, title, subtitle, font, layout, showDollarSign, showDecimals, showSectionDividers, elements, logoPath, logoPosition, logoSize, backgroundColor, textColor, accentColor) => {
     return new Promise((resolve, reject) => {
+        // Ensure logoSize is stored as a string
+        const logoSizeValue = logoSize ? String(logoSize) : '200';
+        
         db.run(
             `INSERT INTO menus (
                 name, title, subtitle, font, layout, 
@@ -156,7 +159,7 @@ const createMenu = async (name, title, subtitle, font, layout, showDollarSign, s
             [
                 name, title, subtitle, font, layout, 
                 showDollarSign, showDecimals, showSectionDividers,
-                logoPath, logoPosition, logoSize,
+                logoPath, logoPosition, logoSizeValue,
                 backgroundColor, textColor, accentColor
             ],
             async function(err) {
@@ -310,6 +313,9 @@ const updateMenu = async (name, title, subtitle, font, layout, showDollarSign, s
                 return resolve(null);
             }
             
+            // Ensure logoSize is stored as a string
+            const logoSizeValue = logoSize !== undefined ? String(logoSize) : menu.logo_size;
+            
             db.run(
                 `UPDATE menus SET 
                     title = ?, subtitle = ?, font = ?, layout = ?, 
@@ -328,7 +334,7 @@ const updateMenu = async (name, title, subtitle, font, layout, showDollarSign, s
                     showSectionDividers !== undefined ? showSectionDividers : menu.show_section_dividers,
                     logoPath !== undefined ? logoPath : menu.logo_path,
                     logoPosition !== undefined ? logoPosition : menu.logo_position,
-                    logoSize !== undefined ? logoSize : menu.logo_size,
+                    logoSizeValue,
                     backgroundColor !== undefined ? backgroundColor : menu.background_color,
                     textColor !== undefined ? textColor : menu.text_color,
                     accentColor !== undefined ? accentColor : menu.accent_color,

@@ -432,7 +432,7 @@ let config = {
     showSectionDividers: true,
     logoPath: null,
     logoPosition: 'top',
-    logoSize: 'medium',
+    logoSize: 200,
     backgroundColor: '#ffffff',
     textColor: '#000000',
     accentColor: '#333333'
@@ -494,12 +494,13 @@ function updatePreview() {
     // Add logo if available and not set to none
     if (config.logoPath && config.logoPosition !== 'none') {
         const logoContainer = document.createElement('div');
-        logoContainer.className = `logo-container logo-${config.logoPosition} logo-${config.logoSize}`;
+        logoContainer.className = `logo-container logo-${config.logoPosition}`;
         
         const logoImg = document.createElement('img');
         logoImg.src = config.logoPath;
         logoImg.alt = 'Restaurant Logo';
         logoImg.className = 'menu-logo';
+        logoImg.style.maxWidth = `${config.logoSize}px`;
         
         logoContainer.appendChild(logoImg);
         
@@ -520,7 +521,8 @@ function updatePreview() {
             const logoImg = document.createElement('img');
             logoImg.src = config.logoPath;
             logoImg.alt = 'Restaurant Logo';
-            logoImg.className = `menu-logo logo-${config.logoSize}`;
+            logoImg.className = 'menu-logo';
+            logoImg.style.maxWidth = `${config.logoSize}px`;
             titleContainer.appendChild(logoImg);
         }
         
@@ -810,7 +812,7 @@ function generateHTML(forPrint = false) {
     // Logo HTML - use server side path for full URL in new tab
     let logoHTML = '';
     if (config.logoPath && config.logoPosition !== 'none') {
-        const logoClass = `logo-${config.logoPosition} logo-${config.logoSize}`;
+        const logoClass = `logo-${config.logoPosition}`;
         const logoSrc = config.logoPath;
         
         if (config.logoPosition === 'top') {
@@ -826,7 +828,7 @@ function generateHTML(forPrint = false) {
     let titleHTML = '';
     if (title) {
         if (config.logoPath && config.logoPosition === 'title') {
-            const logoClass = `logo-${config.logoSize}`;
+            const logoClass = 'logo-medium';
             const logoSrc = config.logoPath;
             
             titleHTML = `
@@ -903,19 +905,9 @@ function generateHTML(forPrint = false) {
                     margin: 0.25in 0;
                 }
                 
-                .menu-logo.logo-small {
-                    max-height: 0.75in;
-                    max-width: 1.5in;
-                }
-                
-                .menu-logo.logo-medium {
-                    max-height: 1.25in;
-                    max-width: 2.5in;
-                }
-                
-                .menu-logo.logo-large {
-                    max-height: 2in;
-                    max-width: 4in;
+                .menu-logo {
+                    max-width: ${config.logoSize}px;
+                    height: auto;
                 }
                 
                 table {
@@ -1172,7 +1164,27 @@ async function loadMenu(menuName) {
             config.showSectionDividers = menuData.show_section_dividers !== undefined ? menuData.show_section_dividers : true;
             config.logoPath = menuData.logo_path || null;
             config.logoPosition = menuData.logo_position || 'top';
-            config.logoSize = menuData.logo_size || 'medium';
+            
+            // Convert logo_size to number if it's a string with size name
+            if (menuData.logo_size) {
+                if (typeof menuData.logo_size === 'string') {
+                    // Handle legacy size names
+                    if (menuData.logo_size === 'small') config.logoSize = 100;
+                    else if (menuData.logo_size === 'medium') config.logoSize = 200;
+                    else if (menuData.logo_size === 'large') config.logoSize = 300;
+                    else if (!isNaN(parseInt(menuData.logo_size))) {
+                        // If it's a numeric string, parse it
+                        config.logoSize = parseInt(menuData.logo_size);
+                    }
+                } else if (typeof menuData.logo_size === 'number') {
+                    config.logoSize = menuData.logo_size;
+                } else {
+                    config.logoSize = 200; // Default if unrecognized format
+                }
+            } else {
+                config.logoSize = 200; // Default value
+            }
+            
             config.backgroundColor = menuData.background_color || '#ffffff';
             config.textColor = menuData.text_color || '#000000';
             config.accentColor = menuData.accent_color || '#333333';
@@ -1182,7 +1194,11 @@ async function loadMenu(menuName) {
             document.getElementById('show-decimals').checked = config.showDecimals;
             document.getElementById('show-dividers').checked = config.showSectionDividers;
             document.getElementById('logo-position').value = config.logoPosition;
+            
+            // Update both size inputs
             document.getElementById('logo-size').value = config.logoSize;
+            document.getElementById('logo-size-slider').value = config.logoSize;
+            
             document.getElementById('background-color').value = config.backgroundColor;
             document.getElementById('text-color').value = config.textColor;
             document.getElementById('accent-color').value = config.accentColor;
@@ -1847,12 +1863,43 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Initialize logo size dropdown
-    const logoSizeSelect = document.getElementById('logo-size');
-    if (logoSizeSelect) {
-        logoSizeSelect.addEventListener('change', (e) => {
-            config.logoSize = e.target.value;
+    // Initialize logo size inputs - sync the slider and number input
+    const logoSizeSlider = document.getElementById('logo-size-slider');
+    const logoSizeInput = document.getElementById('logo-size');
+    
+    if (logoSizeSlider && logoSizeInput) {
+        // Update number input when slider changes
+        logoSizeSlider.addEventListener('input', (e) => {
+            const size = parseInt(e.target.value);
+            logoSizeInput.value = size;
+            config.logoSize = size;
             updatePreview();
+        });
+        
+        // Update final value when slider stops
+        logoSizeSlider.addEventListener('change', () => {
+            markUnsavedChanges();
+        });
+        
+        // Update slider when number input changes
+        logoSizeInput.addEventListener('input', (e) => {
+            let size = parseInt(e.target.value);
+            
+            // Enforce min/max limits
+            if (size < 50) size = 50;
+            if (size > 1000) size = 1000;
+            
+            // Only update slider if within its range
+            if (size >= 50 && size <= 500) {
+                logoSizeSlider.value = size;
+            }
+            
+            config.logoSize = size;
+            updatePreview();
+        });
+        
+        // Mark changes when input loses focus
+        logoSizeInput.addEventListener('change', () => {
             markUnsavedChanges();
         });
     }
