@@ -23,11 +23,13 @@ db.serialize(() => {
             logo_path TEXT,
             logo_position TEXT DEFAULT 'top',
             logo_size TEXT DEFAULT '200',
+            logo_offset TEXT DEFAULT '0',
             background_color TEXT DEFAULT '#ffffff',
             text_color TEXT DEFAULT '#000000',
             accent_color TEXT DEFAULT '#333333',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            user_id INTEGER
         )
     `);
 
@@ -144,23 +146,36 @@ const getSpacers = async (menuName) => {
     });
 };
 
-const createMenu = async (name, title, subtitle, font, layout, showDollarSign, showDecimals, showSectionDividers, elements, logoPath, logoPosition, logoSize, backgroundColor, textColor, accentColor) => {
+const getMenusByUserId = (userId) => {
+    return new Promise((resolve, reject) => {
+        db.all('SELECT * FROM menus WHERE user_id = ? ORDER BY created_at DESC', [userId], (err, rows) => {
+            if (err) reject(err);
+            else resolve(rows);
+        });
+    });
+};
+
+const createMenu = async (name, title, subtitle, font, layout, showDollarSign, showDecimals, showSectionDividers, elements, logoPath, logoPosition, logoSize, logoOffset, backgroundColor, textColor, accentColor, userId) => {
     return new Promise((resolve, reject) => {
         // Ensure logoSize is stored as a string
         const logoSizeValue = logoSize ? String(logoSize) : '200';
+        // Ensure logoOffset is stored as a string
+        const logoOffsetValue = logoOffset ? String(logoOffset) : '0';
         
         db.run(
             `INSERT INTO menus (
                 name, title, subtitle, font, layout, 
                 show_dollar_sign, show_decimals, show_section_dividers,
-                logo_path, logo_position, logo_size,
-                background_color, text_color, accent_color
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                logo_path, logo_position, logo_size, logo_offset,
+                background_color, text_color, accent_color,
+                user_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 name, title, subtitle, font, layout, 
                 showDollarSign, showDecimals, showSectionDividers,
-                logoPath, logoPosition, logoSizeValue,
-                backgroundColor, textColor, accentColor
+                logoPath, logoPosition, logoSizeValue, logoOffsetValue,
+                backgroundColor, textColor, accentColor,
+                userId
             ],
             async function(err) {
                 if (err) {
@@ -301,10 +316,10 @@ const createSpacer = async (menuName, spacer, position) => {
     });
 };
 
-const updateMenu = async (name, title, subtitle, font, layout, showDollarSign, showDecimals, showSectionDividers, elements, logoPath, logoPosition, logoSize, backgroundColor, textColor, accentColor) => {
+const updateMenu = async (name, title, subtitle, font, layout, showDollarSign, showDecimals, showSectionDividers, elements, logoPath, logoPosition, logoSize, logoOffset, backgroundColor, textColor, accentColor, userId) => {
     return new Promise((resolve, reject) => {
-        // First check if menu exists
-        db.get('SELECT * FROM menus WHERE name = ?', [name], async (err, menu) => {
+        // First check if menu exists and belongs to the user
+        db.get('SELECT * FROM menus WHERE name = ? AND (user_id = ? OR user_id IS NULL)', [name, userId], async (err, menu) => {
             if (err) {
                 return reject(err);
             }
@@ -315,13 +330,16 @@ const updateMenu = async (name, title, subtitle, font, layout, showDollarSign, s
             
             // Ensure logoSize is stored as a string
             const logoSizeValue = logoSize !== undefined ? String(logoSize) : menu.logo_size;
+            // Ensure logoOffset is stored as a string
+            const logoOffsetValue = logoOffset !== undefined ? String(logoOffset) : (menu.logo_offset || '0');
             
             db.run(
                 `UPDATE menus SET 
                     title = ?, subtitle = ?, font = ?, layout = ?, 
                     show_dollar_sign = ?, show_decimals = ?, show_section_dividers = ?,
-                    logo_path = ?, logo_position = ?, logo_size = ?,
+                    logo_path = ?, logo_position = ?, logo_size = ?, logo_offset = ?,
                     background_color = ?, text_color = ?, accent_color = ?,
+                    user_id = ?,
                     updated_at = CURRENT_TIMESTAMP 
                 WHERE name = ?`,
                 [
@@ -335,9 +353,11 @@ const updateMenu = async (name, title, subtitle, font, layout, showDollarSign, s
                     logoPath !== undefined ? logoPath : menu.logo_path,
                     logoPosition !== undefined ? logoPosition : menu.logo_position,
                     logoSizeValue,
+                    logoOffsetValue,
                     backgroundColor !== undefined ? backgroundColor : menu.background_color,
                     textColor !== undefined ? textColor : menu.text_color,
                     accentColor !== undefined ? accentColor : menu.accent_color,
+                    userId,
                     name
                 ],
                 async function(err) {
@@ -398,19 +418,22 @@ const deleteSpacers = (menuName) => {
     });
 };
 
-const deleteMenu = (name) => {
+const deleteMenu = (name, userId) => {
     return new Promise((resolve, reject) => {
-        // First ensure that sections are deleted
-        db.run('DELETE FROM sections WHERE menu_name = ?', [name], (sectionErr) => {
-            if (sectionErr) {
-                reject(sectionErr);
-                return;
+        // First check if menu exists and belongs to the user
+        db.get('SELECT * FROM menus WHERE name = ? AND (user_id = ? OR user_id IS NULL)', [name, userId], (err, menu) => {
+            if (err) {
+                return reject(err);
             }
             
-            // Then delete the menu
+            if (!menu) {
+                return resolve(false);
+            }
+            
+            // Delete the menu
             db.run('DELETE FROM menus WHERE name = ?', [name], function(err) {
                 if (err) reject(err);
-                else resolve(this.changes > 0);
+                else resolve(true);
             });
         });
     });
@@ -421,5 +444,6 @@ module.exports = {
     getMenu,
     createMenu,
     updateMenu,
-    deleteMenu
+    deleteMenu,
+    getMenusByUserId
 }; 

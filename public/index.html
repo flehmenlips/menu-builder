@@ -3,56 +3,294 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Restaurant Menu Builder</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Menu Builder Pro - Create Beautiful Restaurant Menus</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="landing.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Restaurant Menu Builder</h1>
-        </header>
-        
-        <main>
-            <section class="menu-section">
-                <h2>Menu Items</h2>
-                <div class="menu-items" id="menuItems">
-                    <!-- Menu items will be dynamically added here -->
-                </div>
-                <button id="addItemBtn" class="btn">Add New Item</button>
-            </section>
+    <header class="main-header">
+        <div class="container">
+            <div class="logo">
+                <img src="/images/menu-builder-logo.png" alt="Menu Builder Pro Logo">
+                <h1>Menu Builder <span>Pro</span></h1>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#pricing">Pricing</a></li>
+                    <li><a href="#testimonials">Testimonials</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                </ul>
+            </nav>
+            <div class="auth-buttons">
+                <a href="/login.html" class="btn btn-outline">Login</a>
+                <a href="/register.html" class="btn btn-primary">Sign Up</a>
+            </div>
+        </div>
+    </header>
 
-            <section class="form-section">
-                <h2>Add/Edit Menu Item</h2>
-                <form id="menuItemForm">
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1>Create Beautiful Restaurant Menus in Minutes</h1>
+                <p>Design professional, customizable menus for your restaurant or food business with our easy-to-use menu builder.</p>
+                <div class="cta-buttons">
+                    <a href="/register.html" class="btn btn-primary btn-large">Get Started - It's Free</a>
+                    <a href="/menu-builder" class="btn btn-outline btn-large">Try Demo</a>
+                </div>
+            </div>
+            <div class="hero-image">
+                <img src="/images/menu-showcase.png" alt="Menu Builder Interface">
+            </div>
+        </div>
+    </section>
+
+    <section id="features" class="features">
+        <div class="container">
+            <h2 class="section-title">Features</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-paint-brush"></i>
+                    </div>
+                    <h3>Beautiful Designs</h3>
+                    <p>Choose from professional templates and customize colors, fonts, and layouts.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <h3>Mobile Responsive</h3>
+                    <p>Menus look great on any device, perfect for digital and print formats.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-print"></i>
+                    </div>
+                    <h3>Print Ready</h3>
+                    <p>Export high-quality PDF menus or print directly from your browser.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-image"></i>
+                    </div>
+                    <h3>Logo Integration</h3>
+                    <p>Easily upload your restaurant logo and position it on your menu.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-sync-alt"></i>
+                    </div>
+                    <h3>Real-time Preview</h3>
+                    <p>See changes instantly with a live preview as you edit your menu.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <h3>Automatic Saving</h3>
+                    <p>Never lose your work with automatic saving and versioning.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta-section">
+        <div class="container">
+            <h2>Ready to Create Your Menu?</h2>
+            <p>Sign up today and have your first professional menu ready in minutes.</p>
+            <a href="/register.html" class="btn btn-primary btn-large">Get Started Free</a>
+        </div>
+    </section>
+
+    <section id="pricing" class="pricing">
+        <div class="container">
+            <h2 class="section-title">Simple, Transparent Pricing</h2>
+            <div class="pricing-grid">
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <h3>Free</h3>
+                        <div class="price">$0<span>/month</span></div>
+                    </div>
+                    <ul class="pricing-features">
+                        <li><i class="fas fa-check"></i> 2 Menu Templates</li>
+                        <li><i class="fas fa-check"></i> Basic Customization</li>
+                        <li><i class="fas fa-check"></i> Up to 3 Saved Menus</li>
+                        <li><i class="fas fa-check"></i> PDF Export</li>
+                        <li><i class="fas fa-times"></i> Logo Integration</li>
+                        <li><i class="fas fa-times"></i> Premium Templates</li>
+                    </ul>
+                    <a href="/register.html" class="btn btn-outline btn-block">Sign Up Free</a>
+                </div>
+                <div class="pricing-card featured">
+                    <div class="pricing-tag">Most Popular</div>
+                    <div class="pricing-header">
+                        <h3>Pro</h3>
+                        <div class="price">$9.99<span>/month</span></div>
+                    </div>
+                    <ul class="pricing-features">
+                        <li><i class="fas fa-check"></i> All Templates</li>
+                        <li><i class="fas fa-check"></i> Advanced Customization</li>
+                        <li><i class="fas fa-check"></i> Unlimited Saved Menus</li>
+                        <li><i class="fas fa-check"></i> PDF & High Res Export</li>
+                        <li><i class="fas fa-check"></i> Logo Integration</li>
+                        <li><i class="fas fa-check"></i> Premium Support</li>
+                    </ul>
+                    <a href="/register.html?plan=pro" class="btn btn-primary btn-block">Try Pro Free for 14 Days</a>
+                </div>
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <h3>Business</h3>
+                        <div class="price">$19.99<span>/month</span></div>
+                    </div>
+                    <ul class="pricing-features">
+                        <li><i class="fas fa-check"></i> Everything in Pro</li>
+                        <li><i class="fas fa-check"></i> Multi-Location Support</li>
+                        <li><i class="fas fa-check"></i> QR Code Menu Integration</li>
+                        <li><i class="fas fa-check"></i> API Access</li>
+                        <li><i class="fas fa-check"></i> Team Collaboration</li>
+                        <li><i class="fas fa-check"></i> Priority Support</li>
+                    </ul>
+                    <a href="/register.html?plan=business" class="btn btn-outline btn-block">Contact Sales</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="testimonials" class="testimonials">
+        <div class="container">
+            <h2 class="section-title">What Our Customers Say</h2>
+            <div class="testimonial-grid">
+                <div class="testimonial-card">
+                    <div class="testimonial-content">
+                        <p>"Menu Builder Pro transformed our restaurant's image. We can now update our menus seasonally with minimal effort, and our customers love the professional look."</p>
+                    </div>
+                    <div class="testimonial-author">
+                        <img src="/images/testimonial-1.jpg" alt="Emily Chen">
+                        <div>
+                            <h4>Emily Chen</h4>
+                            <p>Owner, The Green Plate Bistro</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="testimonial-content">
+                        <p>"As a small café owner, I don't have time to learn complex design software. This tool makes it incredibly easy to create beautiful menus that match our brand."</p>
+                    </div>
+                    <div class="testimonial-author">
+                        <img src="/images/testimonial-2.jpg" alt="Michael Rodriguez">
+                        <div>
+                            <h4>Michael Rodriguez</h4>
+                            <p>Owner, Sunrise Coffee Co.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="testimonial-content">
+                        <p>"The ability to quickly update prices and items has been a game-changer for our busy restaurant. We love how simple it is to maintain multiple menus."</p>
+                    </div>
+                    <div class="testimonial-author">
+                        <img src="/images/testimonial-3.jpg" alt="Sarah Johnson">
+                        <div>
+                            <h4>Sarah Johnson</h4>
+                            <p>Manager, Urban Table Restaurant</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="contact" class="contact">
+        <div class="container">
+            <h2 class="section-title">Contact Us</h2>
+            <div class="contact-grid">
+                <div class="contact-info">
+                    <div class="contact-item">
+                        <i class="fas fa-envelope"></i>
+                        <p>support@menubuilder.pro</p>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-phone"></i>
+                        <p>+1 (555) 123-4567</p>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <p>123 Main Street, San Francisco, CA 94110</p>
+                    </div>
+                    <div class="social-links">
+                        <a href="#" class="social-link"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-linkedin-in"></i></a>
+                    </div>
+                </div>
+                <form class="contact-form">
                     <div class="form-group">
-                        <label for="itemName">Item Name:</label>
-                        <input type="text" id="itemName" required>
+                        <label for="name">Name</label>
+                        <input type="text" id="name" name="name" required>
                     </div>
                     <div class="form-group">
-                        <label for="itemDescription">Description:</label>
-                        <textarea id="itemDescription" required></textarea>
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" required>
                     </div>
                     <div class="form-group">
-                        <label for="itemPrice">Price:</label>
-                        <input type="number" id="itemPrice" step="0.01" required>
+                        <label for="subject">Subject</label>
+                        <input type="text" id="subject" name="subject" required>
                     </div>
                     <div class="form-group">
-                        <label for="itemCategory">Category:</label>
-                        <select id="itemCategory" required>
-                            <option value="appetizers">Appetizers</option>
-                            <option value="main-courses">Main Courses</option>
-                            <option value="desserts">Desserts</option>
-                            <option value="beverages">Beverages</option>
-                        </select>
+                        <label for="message">Message</label>
+                        <textarea id="message" name="message" rows="5" required></textarea>
                     </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn">Save Item</button>
-                        <button type="button" class="btn btn-cancel" id="cancelBtn">Cancel</button>
-                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Send Message</button>
                 </form>
-            </section>
-        </main>
-    </div>
-    <script src="script.js"></script>
+            </div>
+        </div>
+    </section>
+
+    <footer class="main-footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-logo">
+                    <img src="/images/menu-builder-logo.png" alt="Menu Builder Pro Logo">
+                    <h3>Menu Builder <span>Pro</span></h3>
+                    <p>Create beautiful restaurant menus in minutes with our easy-to-use menu builder.</p>
+                </div>
+                <div class="footer-links">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#pricing">Pricing</a></li>
+                        <li><a href="#testimonials">Testimonials</a></li>
+                        <li><a href="/menu-builder">Try Demo</a></li>
+                        <li><a href="/login.html">Login</a></li>
+                        <li><a href="/register.html">Sign Up</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h4>Legal</h4>
+                    <ul>
+                        <li><a href="/terms.html">Terms of Service</a></li>
+                        <li><a href="/privacy.html">Privacy Policy</a></li>
+                        <li><a href="/cookies.html">Cookie Policy</a></li>
+                    </ul>
+                </div>
+                <div class="footer-newsletter">
+                    <h4>Stay Updated</h4>
+                    <p>Subscribe to our newsletter for tips, new features, and updates.</p>
+                    <form class="newsletter-form">
+                        <input type="email" placeholder="Your email address" required>
+                        <button type="submit" class="btn btn-primary">Subscribe</button>
+                    </form>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2023 Menu Builder Pro. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="landing.js"></script>
 </body>
 </html> 

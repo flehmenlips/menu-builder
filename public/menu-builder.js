@@ -433,6 +433,7 @@ let config = {
     logoPath: null,
     logoPosition: 'top',
     logoSize: 200,
+    logoOffset: 0,
     backgroundColor: '#ffffff',
     textColor: '#000000',
     accentColor: '#333333'
@@ -474,7 +475,7 @@ function encodeSpecialChars(text) {
         .replace(/Ç/g, '&Ccedil;');
 }
 
-// Update the preview function to include logo
+// Update the preview function to use offset-based positioning
 function updatePreview() {
     const preview = document.getElementById('menu-preview');
     preview.innerHTML = '';
@@ -495,6 +496,16 @@ function updatePreview() {
     if (config.logoPath && config.logoPosition !== 'none') {
         const logoContainer = document.createElement('div');
         logoContainer.className = `logo-container logo-${config.logoPosition}`;
+        
+        // Apply horizontal positioning
+        if (config.logoOffset === 0) {
+            // Center the logo if offset is 0
+            logoContainer.style.textAlign = 'center';
+        } else {
+            // Apply left offset otherwise
+            logoContainer.style.textAlign = 'left';
+            logoContainer.style.paddingLeft = `${config.logoOffset}px`;
+        }
         
         const logoImg = document.createElement('img');
         logoImg.src = config.logoPath;
@@ -523,6 +534,15 @@ function updatePreview() {
             logoImg.alt = 'Restaurant Logo';
             logoImg.className = 'menu-logo';
             logoImg.style.maxWidth = `${config.logoSize}px`;
+            
+            // Apply horizontal positioning for logo in title
+            if (config.logoOffset === 0) {
+                titleContainer.style.justifyContent = 'center';
+            } else {
+                titleContainer.style.justifyContent = 'flex-start';
+                titleContainer.style.paddingLeft = `${config.logoOffset}px`;
+            }
+            
             titleContainer.appendChild(logoImg);
         }
         
@@ -815,10 +835,18 @@ function generateHTML(forPrint = false) {
         const logoClass = `logo-${config.logoPosition}`;
         const logoSrc = config.logoPath;
         
+        // Set alignment style based on offset
+        let alignStyle = '';
+        if (config.logoOffset === 0) {
+            alignStyle = 'text-align: center;';
+        } else {
+            alignStyle = `text-align: left; padding-left: ${config.logoOffset}px;`;
+        }
+        
         if (config.logoPosition === 'top') {
             logoHTML = `
-                <div class="logo-container ${logoClass}">
-                    <img src="${logoSrc}" alt="Restaurant Logo" class="menu-logo">
+                <div class="logo-container ${logoClass}" style="${alignStyle}">
+                    <img src="${logoSrc}" alt="Restaurant Logo" class="menu-logo" style="max-width: ${config.logoSize}px;">
                 </div>
             `;
         }
@@ -828,12 +856,17 @@ function generateHTML(forPrint = false) {
     let titleHTML = '';
     if (title) {
         if (config.logoPath && config.logoPosition === 'title') {
-            const logoClass = 'logo-medium';
-            const logoSrc = config.logoPath;
+            // Set alignment style for title container
+            let titleAlignStyle = '';
+            if (config.logoOffset === 0) {
+                titleAlignStyle = 'justify-content: center;';
+            } else {
+                titleAlignStyle = `justify-content: flex-start; padding-left: ${config.logoOffset}px;`;
+            }
             
             titleHTML = `
-                <div class="title-container">
-                    <img src="${logoSrc}" alt="Restaurant Logo" class="menu-logo ${logoClass}">
+                <div class="title-container" style="${titleAlignStyle}">
+                    <img src="${logoSrc}" alt="Restaurant Logo" class="menu-logo" style="max-width: ${config.logoSize}px;">
                     <h1>${title}</h1>
                 </div>
             `;
@@ -1116,6 +1149,7 @@ function getMenuState() {
         logoPath: config.logoPath,
         logoPosition: config.logoPosition,
         logoSize: config.logoSize,
+        logoOffset: config.logoOffset,
         backgroundColor: config.backgroundColor,
         textColor: config.textColor,
         accentColor: config.accentColor,
@@ -1185,6 +1219,16 @@ async function loadMenu(menuName) {
                 config.logoSize = 200; // Default value
             }
             
+            // Handle logo offset (support legacy align field)
+            if (menuData.logo_offset) {
+                config.logoOffset = parseInt(menuData.logo_offset);
+            } else if (menuData.logo_align && menuData.logo_align !== 'center') {
+                // If we have old alignment data but no offset, default to something sensible
+                config.logoOffset = (menuData.logo_align === 'left') ? 10 : 0;
+            } else {
+                config.logoOffset = 0; // Default to centered
+            }
+            
             config.backgroundColor = menuData.background_color || '#ffffff';
             config.textColor = menuData.text_color || '#000000';
             config.accentColor = menuData.accent_color || '#333333';
@@ -1195,9 +1239,13 @@ async function loadMenu(menuName) {
             document.getElementById('show-dividers').checked = config.showSectionDividers;
             document.getElementById('logo-position').value = config.logoPosition;
             
+            // Update offset inputs
+            document.getElementById('logo-offset').value = config.logoOffset;
+            document.getElementById('logo-offset-slider').value = Math.min(config.logoOffset, 500); // Limit to slider max
+            
             // Update both size inputs
             document.getElementById('logo-size').value = config.logoSize;
-            document.getElementById('logo-size-slider').value = config.logoSize;
+            document.getElementById('logo-size-slider').value = Math.min(config.logoSize, 500); // Limit to slider max
             
             document.getElementById('background-color').value = config.backgroundColor;
             document.getElementById('text-color').value = config.textColor;
@@ -1324,6 +1372,8 @@ document.getElementById('save-menu').addEventListener('click', async () => {
         logoPath: config.logoPath,
         logoPosition: config.logoPosition,
         logoSize: config.logoSize,
+        logoAlign: config.logoAlign,
+        logoOffset: config.logoOffset,
         backgroundColor: config.backgroundColor,
         textColor: config.textColor,
         accentColor: config.accentColor
@@ -1863,6 +1913,47 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Initialize logo offset controls
+    const logoOffsetSlider = document.getElementById('logo-offset-slider');
+    const logoOffsetInput = document.getElementById('logo-offset');
+    
+    if (logoOffsetSlider && logoOffsetInput) {
+        // Update number input when slider changes
+        logoOffsetSlider.addEventListener('input', (e) => {
+            const offset = parseInt(e.target.value);
+            logoOffsetInput.value = offset;
+            config.logoOffset = offset;
+            updatePreview();
+        });
+        
+        // Update final value when slider stops
+        logoOffsetSlider.addEventListener('change', () => {
+            markUnsavedChanges();
+        });
+        
+        // Update slider when number input changes
+        logoOffsetInput.addEventListener('input', (e) => {
+            let offset = parseInt(e.target.value);
+            
+            // Enforce min/max limits
+            if (offset < 0) offset = 0;
+            if (offset > 500) offset = 500;
+            
+            // Only update slider if within its range
+            if (offset >= 0 && offset <= 500) {
+                logoOffsetSlider.value = offset;
+            }
+            
+            config.logoOffset = offset;
+            updatePreview();
+        });
+        
+        // Mark changes when input loses focus
+        logoOffsetInput.addEventListener('change', () => {
+            markUnsavedChanges();
+        });
+    }
+    
     // Initialize logo size inputs - sync the slider and number input
     const logoSizeSlider = document.getElementById('logo-size-slider');
     const logoSizeInput = document.getElementById('logo-size');
@@ -2123,16 +2214,22 @@ function handleLogoUpload(file) {
     
     // Show upload in progress
     const logoPreview = document.getElementById('logo-preview');
-    logoPreview.src = '/images/uploading.gif';
+    logoPreview.src = '/images/placeholder-logo.png'; // Fallback while uploading
     
     // Upload to server
     fetch('/api/upload-logo', {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
+            console.log('Logo uploaded successfully:', data.logoPath);
             // Update preview and config
             logoPreview.src = data.logoPath;
             config.logoPath = data.logoPath;

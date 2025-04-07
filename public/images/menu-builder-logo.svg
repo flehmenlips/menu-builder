@@ -1,0 +1,17 @@
+<svg width="200" height="60" viewBox="0 0 200 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Menu icon -->
+  <rect x="10" y="10" width="40" height="40" rx="8" fill="#4a6bfa"/>
+  
+  <!-- Menu lines -->
+  <rect x="18" y="20" width="24" height="3" rx="1.5" fill="white"/>
+  <rect x="18" y="28" width="24" height="3" rx="1.5" fill="white"/>
+  <rect x="18" y="36" width="24" height="3" rx="1.5" fill="white"/>
+  
+  <!-- Pencil -->
+  <path d="M35 24L26 33L24 36L27 34L36 25L35 24Z" fill="white"/>
+  <path d="M35 24L36 25L37 24L36 23L35 24Z" fill="white"/>
+  
+  <!-- Text -->
+  <text x="60" y="30" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#333333">Menu Builder</text>
+  <text x="60" y="48" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#4a6bfa">Pro</text>
+</svg> 
