@@ -17,6 +17,7 @@ function addSection(data = {}) {
     const sectionDiv = document.createElement('div');
     sectionDiv.className = 'section-card section-expanded';
     sectionDiv.id = sectionId;
+    sectionDiv.dataset.type = 'section';
 
     // Add move buttons
     const moveButtons = document.createElement('div');
@@ -25,12 +26,12 @@ function addSection(data = {}) {
     const moveUpBtn = document.createElement('button');
     moveUpBtn.className = 'move-btn move-up';
     moveUpBtn.innerHTML = '↑';
-    moveUpBtn.addEventListener('click', () => moveSection(sectionId, 'up'));
+    moveUpBtn.addEventListener('click', () => moveElement(sectionId, 'up'));
     
     const moveDownBtn = document.createElement('button');
     moveDownBtn.className = 'move-btn move-down';
     moveDownBtn.innerHTML = '↓';
-    moveDownBtn.addEventListener('click', () => moveSection(sectionId, 'down'));
+    moveDownBtn.addEventListener('click', () => moveElement(sectionId, 'down'));
     
     moveButtons.appendChild(moveUpBtn);
     moveButtons.appendChild(moveDownBtn);
@@ -183,26 +184,57 @@ function addItem(sectionId, data = {}) {
     moveButtons.appendChild(moveDownBtn);
     itemDiv.appendChild(moveButtons);
 
-    // Item name input
+    // Create field containers for better organization
+    const nameContainer = document.createElement('div');
+    nameContainer.className = 'field-container';
+    
+    const descContainer = document.createElement('div');
+    descContainer.className = 'field-container';
+    
+    const priceContainer = document.createElement('div');
+    priceContainer.className = 'field-container';
+
+    // Item name label and input
+    const nameLabel = document.createElement('label');
+    nameLabel.textContent = 'Item Name';
+    nameLabel.className = 'field-label';
+    
     const nameInput = document.createElement('input');
     nameInput.type = 'text';
     nameInput.className = 'item-name';
     nameInput.placeholder = 'Item Name';
     nameInput.value = data.name || '';
+    
+    nameContainer.appendChild(nameLabel);
+    nameContainer.appendChild(nameInput);
 
-    // Item description input
-    const descInput = document.createElement('input');
-    descInput.type = 'text';
+    // Item description label and textarea
+    const descLabel = document.createElement('label');
+    descLabel.textContent = 'Description';
+    descLabel.className = 'field-label';
+    
+    const descInput = document.createElement('textarea');
     descInput.className = 'item-desc';
     descInput.placeholder = 'Description';
     descInput.value = data.description || '';
+    descInput.rows = 3;
+    
+    descContainer.appendChild(descLabel);
+    descContainer.appendChild(descInput);
 
-    // Item price input
+    // Item price label and input
+    const priceLabel = document.createElement('label');
+    priceLabel.textContent = 'Price';
+    priceLabel.className = 'field-label';
+    
     const priceInput = document.createElement('input');
     priceInput.type = 'text';
     priceInput.className = 'item-price';
     priceInput.placeholder = 'Price';
     priceInput.value = data.price || '';
+    
+    priceContainer.appendChild(priceLabel);
+    priceContainer.appendChild(priceInput);
 
     // Active toggle in a container
     const activeToggleContainer = document.createElement('div');
@@ -211,10 +243,12 @@ function addItem(sectionId, data = {}) {
     const activeToggle = document.createElement('input');
     activeToggle.type = 'checkbox';
     activeToggle.className = 'active-toggle';
+    activeToggle.id = `active-${itemId}`;
     activeToggle.checked = data.active !== false && data.active !== 0;
 
     const activeLabel = document.createElement('label');
     activeLabel.textContent = 'Active';
+    activeLabel.htmlFor = `active-${itemId}`;
     
     activeToggleContainer.appendChild(activeToggle);
     activeToggleContainer.appendChild(activeLabel);
@@ -233,12 +267,17 @@ function addItem(sectionId, data = {}) {
     // Add delete button to controls
     controlsContainer.appendChild(deleteItemBtn);
 
+    // Action container for active toggle and controls
+    const actionContainer = document.createElement('div');
+    actionContainer.className = 'action-container';
+    actionContainer.appendChild(activeToggleContainer);
+    actionContainer.appendChild(controlsContainer);
+
     // Add all elements to item div
-    itemDiv.appendChild(nameInput);
-    itemDiv.appendChild(descInput);
-    itemDiv.appendChild(priceInput);
-    itemDiv.appendChild(activeToggleContainer);
-    itemDiv.appendChild(controlsContainer);
+    itemDiv.appendChild(nameContainer);
+    itemDiv.appendChild(descContainer);
+    itemDiv.appendChild(priceContainer);
+    itemDiv.appendChild(actionContainer);
 
     // Add to the section's items container
     document.querySelector(`#${sectionId} .items`).appendChild(itemDiv);
@@ -357,14 +396,13 @@ function updatePreview() {
     menuContent.className = 'menu-content';
 
     // Get all elements and sort them by their current order
-    const elements = Array.from(document.getElementById('sections').children)
-        .map((element, index) => ({
+    let elements = Array.from(document.getElementById('sections').children)
+        .map(element => ({
             element,
-            order: index,
             type: element.dataset.type || 'section',
             isActive: !element.classList.contains('inactive')
         }))
-        .filter(item => item.type === 'spacer' || item.isActive);
+        .filter(item => item.isActive);
 
     elements.forEach((item, index) => {
         if (item.type === 'spacer') {
@@ -379,7 +417,7 @@ function updatePreview() {
             
             menuContent.appendChild(spacerDiv);
         } else {
-            // Handle section as before
+            // Handle section
             const section = item.element;
             const sectionName = section.querySelector('.section-name').value;
             if (sectionName) {
@@ -400,9 +438,13 @@ function updatePreview() {
                     .map(item => item.element);
 
                 items.forEach(item => {
-                    const itemName = item.querySelector('.item-name').value;
-                    const itemDesc = item.querySelector('.item-desc').value;
-                    const itemPrice = item.querySelector('.item-price').value;
+                    const nameInput = item.querySelector('.item-name');
+                    const descInput = item.querySelector('.item-desc');
+                    const priceInput = item.querySelector('.item-price');
+                    
+                    const itemName = nameInput ? nameInput.value : '';
+                    const itemDesc = descInput ? descInput.value : '';
+                    const itemPrice = priceInput ? priceInput.value : '';
 
                     if (itemName) {
                         const itemElement = document.createElement('div');
@@ -500,34 +542,19 @@ function isAtColumnBreak(element) {
 // Generate HTML function
 function generateHTML(forPrint = false) {
     // Get menu data
-    const menuTitle = document.getElementById('title').value;
-    const menuSubtitle = document.getElementById('subtitle').value;
-    const selectedFont = document.getElementById('font-select').value;
+    const title = encodeSpecialChars(document.getElementById('title').value);
+    const subtitle = encodeSpecialChars(document.getElementById('subtitle').value);
+    const fontFamily = document.getElementById('font-select').value;
     const layout = document.getElementById('layout-select').value;
     
-    // Get all elements and sort them by their current order
+    // Get all elements and filter out inactive ones
     const elements = Array.from(document.getElementById('sections').children)
-        .map((element, index) => ({
+        .map(element => ({
             element,
-            order: index,
             type: element.dataset.type || 'section',
             isActive: !element.classList.contains('inactive')
         }))
-        .filter(item => item.type === 'spacer' || item.isActive);
-    
-    // Split elements for two-column layout if needed
-    let leftColumnElements = [];
-    let rightColumnElements = [];
-    
-    if (layout === 'split') {
-        // For two columns, split elements evenly
-        const midpoint = Math.ceil(elements.length / 2);
-        leftColumnElements = elements.slice(0, midpoint);
-        rightColumnElements = elements.slice(midpoint);
-    } else {
-        // For single column, all elements go in the left column
-        leftColumnElements = elements;
-    }
+        .filter(item => item.isActive);
     
     // Generate HTML for elements (sections and spacers)
     const generateElementsHTML = (elementItems) => {
@@ -549,17 +576,14 @@ function generateHTML(forPrint = false) {
                 // Generate HTML for section
                 const section = item.element;
                 const sectionName = section.querySelector('.section-name').value;
-                
                 if (sectionName) {
                     htmlContent += `
-                        <tr>
-                            <td colspan="2" style="text-align: center; padding-top: 20px; padding-bottom: 10px;">
-                                <h3 style="margin: 0; font-weight: normal; font-size: 16pt;">${encodeSpecialChars(sectionName)}</h3>
-                            </td>
+                        <tr class="section-header">
+                            <td colspan="2"><h2>${encodeSpecialChars(sectionName)}</h2></td>
                         </tr>
                     `;
                     
-                    // Get all active items in this section
+                    // Get items in the section and sort them
                     const items = Array.from(section.querySelectorAll('.item-card:not(.inactive)'))
                         .map(item => ({
                             element: item,
@@ -569,9 +593,13 @@ function generateHTML(forPrint = false) {
                         .map(item => item.element);
                         
                     items.forEach(item => {
-                        const itemName = item.querySelector('.item-name').value;
-                        const itemDesc = item.querySelector('.item-desc').value;
-                        const itemPrice = item.querySelector('.item-price').value;
+                        const nameInput = item.querySelector('.item-name');
+                        const descInput = item.querySelector('.item-desc');
+                        const priceInput = item.querySelector('.item-price');
+                        
+                        const itemName = nameInput ? nameInput.value : '';
+                        const itemDesc = descInput ? descInput.value : '';
+                        const itemPrice = priceInput ? priceInput.value : '';
                         
                         if (itemName) {
                             // Format price
@@ -595,30 +623,27 @@ function generateHTML(forPrint = false) {
                                 }
                             }
                             
+                            // Add item HTML
                             htmlContent += `
-                                <tr>
-                                    <td style="padding: 5px 10px 5px 0; vertical-align: top;">
-                                        <strong>${encodeSpecialChars(itemName)}</strong>
-                                        ${itemDesc ? `<br><span style="font-size: 10pt;">${encodeSpecialChars(itemDesc)}</span>` : ''}
+                                <tr class="menu-item">
+                                    <td class="item-info">
+                                        <div class="item-name">${encodeSpecialChars(itemName)}</div>
+                                        ${itemDesc ? `<div class="item-description">${encodeSpecialChars(itemDesc)}</div>` : ''}
                                     </td>
-                                    <td style="padding: 5px 0; text-align: right; vertical-align: top; white-space: nowrap; width: 50px;">
-                                        ${formattedPrice}
-                                    </td>
+                                    <td class="item-price">${formattedPrice}</td>
                                 </tr>
                             `;
                         }
                     });
                     
-                    // Add section divider if enabled and not the last section
-                    const isLastElement = index === elementItems.length - 1;
-                    const isNextElementSpacer = !isLastElement && elementItems[index + 1].type === 'spacer';
+                    // Add section divider if it's not the last section
+                    const isLastSection = index === elementItems.length - 1;
+                    const isNextElementSpacer = !isLastSection && elementItems[index + 1].type === 'spacer';
                     
-                    if (config.showSectionDividers && !isLastElement && !isNextElementSpacer) {
+                    if (config.showSectionDividers && !isLastSection && !isNextElementSpacer) {
                         htmlContent += `
-                            <tr>
-                                <td colspan="2" style="padding: 10px 0;">
-                                    <hr style="border: none; border-top: 1px dashed #ddd; margin: 0;">
-                                </td>
+                            <tr class="section-divider">
+                                <td colspan="2"><hr /></td>
                             </tr>
                         `;
                     }
@@ -630,12 +655,12 @@ function generateHTML(forPrint = false) {
     };
     
     // Generate HTML for left column
-    let leftColumnHTML = generateElementsHTML(leftColumnElements);
+    let leftColumnHTML = generateElementsHTML(elements.slice(0, Math.ceil(elements.length / 2)));
     
     // Generate HTML for right column if two-column layout
     let rightColumnHTML = '';
     if (layout === 'split') {
-        rightColumnHTML = generateElementsHTML(rightColumnElements);
+        rightColumnHTML = generateElementsHTML(elements.slice(Math.ceil(elements.length / 2)));
     }
     
     // Create the final HTML with table layout
@@ -644,9 +669,9 @@ function generateHTML(forPrint = false) {
         <html>
         <head>
             <meta charset="UTF-8">
-            <title>${encodeSpecialChars(menuTitle || 'Menu')}</title>
+            <title>${encodeSpecialChars(title || 'Menu')}</title>
             <style>
-                @import url('https://fonts.googleapis.com/css2?family=${selectedFont.replace(' ', '+')}&display=swap');
+                @import url('https://fonts.googleapis.com/css2?family=${fontFamily.replace(' ', '+')}&display=swap');
                 
                 @page {
                     size: letter;
@@ -654,7 +679,7 @@ function generateHTML(forPrint = false) {
                 }
                 
                 body {
-                    font-family: '${selectedFont}', serif;
+                    font-family: '${fontFamily}', serif;
                     margin: 0;
                     padding: 0;
                     background-color: white;
@@ -739,8 +764,8 @@ function generateHTML(forPrint = false) {
         <body>
             <button class="print-button" onclick="printMenu()">Print Menu</button>
             <div class="menu-container">
-                ${menuTitle ? `<h1>${encodeSpecialChars(menuTitle)}</h1>` : ''}
-                ${menuSubtitle ? `<h2>${encodeSpecialChars(menuSubtitle)}</h2>` : ''}
+                ${title ? `<h1>${encodeSpecialChars(title)}</h1>` : ''}
+                ${subtitle ? `<h2>${encodeSpecialChars(subtitle)}</h2>` : ''}
                 <table class="menu-content">
                     ${layout === 'split' ? `
                         <tr>
@@ -1025,7 +1050,22 @@ async function updateMenuSelect() {
     }
 }
 
-// Move section up or down
+// Move any element (section or spacer) up or down
+function moveElement(elementId, direction) {
+    const element = document.getElementById(elementId);
+    const container = document.getElementById('sections');
+    const currentIndex = Array.from(container.children).indexOf(element);
+    
+    if (direction === 'up' && currentIndex > 0) {
+        container.insertBefore(element, container.children[currentIndex - 1]);
+    } else if (direction === 'down' && currentIndex < container.children.length - 1) {
+        container.insertBefore(element, container.children[currentIndex + 1].nextSibling);
+    }
+    
+    updatePreview();
+}
+
+// Update the moveSection function to use moveElement
 function moveSection(sectionId, direction) {
     moveElement(sectionId, direction);
 }
@@ -1460,19 +1500,4 @@ function deleteSpacer(spacerId) {
         document.getElementById(spacerId).remove();
         updatePreview();
     }
-}
-
-// Move any element (section or spacer) up or down
-function moveElement(elementId, direction) {
-    const element = document.getElementById(elementId);
-    const sections = document.getElementById('sections');
-    const currentIndex = Array.from(sections.children).indexOf(element);
-    
-    if (direction === 'up' && currentIndex > 0) {
-        sections.insertBefore(element, sections.children[currentIndex - 1]);
-    } else if (direction === 'down' && currentIndex < sections.children.length - 1) {
-        sections.insertBefore(element, sections.children[currentIndex + 1].nextSibling);
-    }
-    
-    updatePreview();
 } 
