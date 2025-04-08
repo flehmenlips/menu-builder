@@ -515,4 +515,53 @@ main {
     main {
         grid-template-columns: 1fr;
     }
+}
+
+.color-picker-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.color-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem; /* Space between picker and hex value */
+}
+
+input[type="color"] {
+    -webkit-appearance: none; /* Override default Mac/iOS styles */
+    -moz-appearance: none;
+    appearance: none;
+    width: 40px; /* Adjust size as needed */
+    height: 40px;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 4px; /* Optional: make it round or squared */
+    cursor: pointer;
+    background-color: transparent; /* Remove default background */
+    overflow: hidden; /* Ensure background doesn't overflow */
+}
+
+/* Style the inner color picker button for Webkit browsers */
+input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 4px; /* Match outer radius */
+}
+
+/* Style the inner color picker button for Firefox */
+input[type="color"]::-moz-color-swatch {
+    border: none;
+    border-radius: 4px; /* Match outer radius */
+}
+
+.color-hex-value {
+    font-family: monospace;
+    background-color: var(--light-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.9em;
 } 

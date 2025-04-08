@@ -3,6 +3,7 @@
 // Global variables
 let currentUser = null;
 let authToken = null;
+let currentLogoPath = null;
 
 // DOM Elements
 const userLoginContainer = document.getElementById('user-login-container');
@@ -230,8 +231,16 @@ async function verifyUserToken() { // Removed token parameter
             console.log("verifyUserToken: Updating header elements...");
             const userNameElement = document.getElementById('user-name');
             const planBadgeElement = document.getElementById('user-plan-badge');
+            const accountEmailElement = document.getElementById('profile-account-email'); // Get new element
+
             if(userNameElement) { userNameElement.textContent = currentUser.name || currentUser.email; }
             if(planBadgeElement) { planBadgeElement.textContent = currentUser.subscription_status || 'Free'; } 
+            if(accountEmailElement) { 
+                accountEmailElement.textContent = currentUser.email; // Set email text
+                console.log('verifyUserToken: Updated account email display.');
+            } else {
+                console.warn('verifyUserToken: profile-account-email element not found.');
+            }
 
             console.log("verifyUserToken: Verification successful, returning true.");
             return true; // Indicate success
@@ -300,8 +309,7 @@ function showSection(sectionId) {
                     loadTemplatesData();
                     break;
                 case 'profile':
-                    // Call initProfile, which includes fetching data
-                    initProfile(); 
+                    initProfile();
                     break;
                 case 'billing':
                     loadBillingData();
@@ -374,22 +382,32 @@ async function loadDashboardData() {
 }
 
 async function loadMenusData() {
+    console.log("Loading menus data...");
     try {
-        const response = await fetch('/api/user/menus', {
-            headers: {
-                'Authorization': `Bearer ${authToken}`
-            }
+        // Use the correct endpoint and cookie auth
+        const response = await fetch('/api/menus', { 
+            method: 'GET',
+            credentials: 'include'
         });
 
-        if (response.ok) {
-            const data = await response.json();
-            const menusGrid = document.getElementById('menus-grid');
-            menusGrid.innerHTML = '';
+        if (!response.ok) {
+            if (response.status === 401) handleUnauthorized();
+            const errorData = await response.json().catch(() => ({ error: 'Failed to fetch menus' }));
+            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        }
+        
+        const menus = await response.json(); // Expecting an array of menus
+        console.log("Menus data received:", menus);
+        const menusGrid = document.getElementById('menus-grid');
+        if (!menusGrid) return;
+        menusGrid.innerHTML = '';
 
-            data.menus.forEach(menu => {
+        if (menus && menus.length > 0) {
+            menus.forEach(menu => {
                 const menuCard = document.createElement('div');
                 menuCard.className = 'menu-card';
-                menuCard.innerHTML = `
+                // TODO: Update this innerHTML based on actual menu object properties
+                menuCard.innerHTML = ` 
                     <div class="menu-header">
                         <h3>${menu.name}</h3>
                         <span class="menu-status ${menu.is_published ? 'published' : 'draft'}">
@@ -399,121 +417,76 @@ async function loadMenusData() {
                     <div class="menu-info">
                         <p>${menu.description || 'No description'}</p>
                         <p class="menu-stats">
-                            <span>Views: ${menu.views}</span>
+                            <span>Views: ${menu.views || 0}</span>
                             <span>Last Updated: ${new Date(menu.updated_at).toLocaleDateString()}</span>
                         </p>
                     </div>
                     <div class="menu-actions">
-                        <button onclick="editMenu(${menu.id})" class="btn-secondary">Edit</button>
-                        <button onclick="deleteMenu(${menu.id})" class="btn-danger">Delete</button>
+                         <button onclick="editMenuByName('${menu.name}')" class="btn-secondary">Edit</button>
+                         <button onclick="deleteMenuByName('${menu.name}')" class="btn-danger">Delete</button>
                     </div>
                 `;
                 menusGrid.appendChild(menuCard);
             });
+        } else {
+             menusGrid.innerHTML = '<p>No menus found. Create one!</p>';
         }
     } catch (error) {
         console.error('Error loading menus data:', error);
+        const menusGrid = document.getElementById('menus-grid');
+        if (menusGrid) menusGrid.innerHTML = '<p class="error">Error loading menus.</p>';
     }
 }
 
 async function loadTemplatesData() {
-    try {
-        const response = await fetch('/api/user/templates', {
-            headers: {
-                'Authorization': `Bearer ${authToken}`
-            }
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            const templatesGrid = document.getElementById('templates-grid');
-            templatesGrid.innerHTML = '';
-
-            data.templates.forEach(template => {
-                const templateCard = document.createElement('div');
-                templateCard.className = 'template-card';
-                templateCard.innerHTML = `
-                    <div class="template-header">
-                        <h3>${template.name}</h3>
-                        <span class="template-category">${template.category}</span>
-                    </div>
-                    <div class="template-preview">
-                        <img src="${template.preview_url}" alt="${template.name}">
-                    </div>
-                    <div class="template-actions">
-                        <button onclick="useTemplate(${template.id})" class="btn-primary">Use Template</button>
-                    </div>
-                `;
-                templatesGrid.appendChild(templateCard);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading templates data:', error);
-    }
-}
-
-async function loadProfileData() {
-    try {
-        const response = await fetch('/api/user/profile', {
-            headers: {
-                'Authorization': `Bearer ${authToken}`
-            }
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            
-            document.getElementById('profile-name').value = data.name;
-            document.getElementById('profile-email').value = data.email;
-            
-            if (data.avatar_url) {
-                document.getElementById('avatar-preview').style.display = 'block';
-                document.getElementById('avatar-preview').src = data.avatar_url;
-                document.getElementById('no-avatar').style.display = 'none';
-            }
-        }
-    } catch (error) {
-        console.error('Error loading profile data:', error);
-    }
+    console.warn("loadTemplatesData: Endpoint /api/templates not implemented yet.");
+    const templatesGrid = document.getElementById('templates-grid');
+    if (templatesGrid) templatesGrid.innerHTML = '<p>Templates feature coming soon!</p>';
+    // Placeholder - Fetch from /api/templates when implemented
 }
 
 async function loadBillingData() {
-    try {
-        const response = await fetch('/api/user/billing', {
-            headers: {
-                'Authorization': `Bearer ${authToken}`
-            }
-        });
+     console.warn("loadBillingData: Endpoint /api/billing not implemented yet.");
+     const billingTable = document.getElementById('billing-table')?.querySelector('tbody');
+     if (billingTable) billingTable.innerHTML = '<tr><td colspan="4" class="no-data">Billing feature coming soon!</td></tr>';
+    // Placeholder - Fetch from /api/billing when implemented
+}
 
-        if (response.ok) {
-            const data = await response.json();
-            
-            document.getElementById('current-plan-name').textContent = data.currentPlan.name;
-            document.getElementById('current-plan-price').textContent = `$${data.currentPlan.price}/month`;
-            
-            const featuresList = document.getElementById('plan-features-list');
-            featuresList.innerHTML = '';
-            data.currentPlan.features.forEach(feature => {
-                const li = document.createElement('li');
-                li.textContent = feature;
-                featuresList.appendChild(li);
-            });
-            
-            const billingTable = document.getElementById('billing-table').getElementsByTagName('tbody')[0];
-            billingTable.innerHTML = '';
-            
-            data.billingHistory.forEach(record => {
-                const row = billingTable.insertRow();
-                row.innerHTML = `
-                    <td>${new Date(record.date).toLocaleDateString()}</td>
-                    <td>${record.description}</td>
-                    <td>$${record.amount}</td>
-                    <td><span class="status ${record.status.toLowerCase()}">${record.status}</span></td>
-                `;
-            });
+// Need functions to handle edit/delete buttons
+async function editMenuByName(menuName) {
+    console.log(`editMenuByName called for: ${menuName}`);
+    // TODO: Redirect to the main menu builder app, passing the menu name
+    // Option 1: Redirect with query parameter
+    window.location.href = `/Menu_Builder-V4.html?menu=${encodeURIComponent(menuName)}`;
+    // Option 2: Use a modal or different approach if editing happens within user portal
+}
+
+async function deleteMenuByName(menuName) {
+    console.log(`deleteMenuByName called for: ${menuName}`);
+    if (!confirm(`Are you sure you want to delete the menu "${menuName}"?`)) {
+        return;
+    }
+
+    try {
+         const response = await fetch(`/api/menus/${encodeURIComponent(menuName)}`, { 
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        
+        const data = await response.json().catch(() => ({})); // Handle potential non-json response on error
+
+        if (!response.ok) {
+            if (response.status === 401) handleUnauthorized();
+            throw new Error(data.error || `HTTP error! status: ${response.status}`);
         }
+
+        console.log("Menu deleted successfully");
+        // Refresh the menu list
+        loadMenusData(); 
+
     } catch (error) {
-        console.error('Error loading billing data:', error);
+         console.error('Error deleting menu:', error);
+         alert(`Error deleting menu: ${error.message}`); // Simple user feedback
     }
 }
 
@@ -672,9 +645,9 @@ async function saveProfile(event) {
         const response = await fetch('/api/user/profile', {
             method: 'PUT',
             headers: {
-                'Authorization': `Bearer ${authToken}`,
                 'Content-Type': 'application/json'
             },
+            credentials: 'include',
             body: JSON.stringify(profileData)
         });
 
@@ -751,6 +724,7 @@ function initProfile() {
     fetchProfileData();
     setupProfileForm();
     setupLogoUpload();
+    setupColorPickers();
 }
 
 async function fetchProfileData() {
@@ -784,17 +758,20 @@ async function fetchProfileData() {
         const profile = await response.json();
         console.log('Profile data received:', profile);
 
-        // --- DETAILED LOGGING FOR POPULATION --- 
+        // Store the fetched logo path globally
+        currentLogoPath = profile.logo_path || null;
+        console.log("[Fetch Profile] Stored currentLogoPath:", currentLogoPath);
+        
+        // --- Populate Form (including color spans) ---
         console.log('Attempting to populate profile form...');
         const elementsToPopulate = [
             { id: 'company-name', prop: 'company_name' },
             { id: 'company-address', prop: 'address' },
             { id: 'company-phone', prop: 'phone' },
-            { id: 'company-email', prop: 'email' },
             { id: 'company-website', prop: 'website' },
-            { id: 'primary-color', prop: 'primary_color', default: '#4a6cf7' },
-            { id: 'secondary-color', prop: 'secondary_color', default: '#6c757d' },
-            { id: 'accent-color', prop: 'accent_color', default: '#343a40' },
+            { id: 'primary-color', prop: 'primary_color', default: '#4a6cf7', spanId: 'primary-color-value' },
+            { id: 'secondary-color', prop: 'secondary_color', default: '#6c757d', spanId: 'secondary-color-value' },
+            { id: 'accent-color', prop: 'accent_color', default: '#343a40', spanId: 'accent-color-value' },
             { id: 'default-font', prop: 'default_font', default: 'Arial' }
         ];
 
@@ -804,6 +781,15 @@ async function fetchProfileData() {
                 const value = profile[item.prop] || item.default || '';
                 console.log(` - Populating #${item.id} with value: "${value}" (from profile.${item.prop})`);
                 element.value = value;
+                // Update corresponding span if it exists
+                if (item.spanId) {
+                    const spanElement = document.getElementById(item.spanId);
+                    if (spanElement) {
+                        spanElement.textContent = value.toUpperCase();
+                    } else {
+                        console.error(` - FAILED to find span element with ID: #${item.spanId}`);
+                    }
+                }
             } else {
                 console.error(` - FAILED to find element with ID: #${item.id}`);
             }
@@ -813,9 +799,9 @@ async function fetchProfileData() {
         const logoPreview = document.getElementById('logo-preview');
         if (logoPreview) {
              console.log(' - Found logo preview element.');
-            if (profile.logo_path) {
-                 console.log(` - Setting logo preview src to: ${profile.logo_path}`);
-                 logoPreview.src = profile.logo_path;
+            if (currentLogoPath) {
+                 console.log(` - Setting logo preview src to: ${currentLogoPath}`);
+                 logoPreview.src = currentLogoPath;
                  logoPreview.style.display = 'block';
             } else {
                  console.log(' - No logo_path found, hiding preview.');
@@ -853,15 +839,18 @@ function setupProfileForm() {
             profileData[key.replace(/-/g, '_')] = value;
         });
 
-        console.log('Submitting profile data:', profileData);
+        // *** ADD currentLogoPath to the submitted data ***
+        profileData.logo_path = currentLogoPath; 
+
+        console.log('Submitting profile data (incl. logo path):', profileData);
 
         try {
             const response = await fetch('/api/profile', {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify(profileData)
             });
 
@@ -877,6 +866,9 @@ function setupProfileForm() {
                 profileMessage.textContent = 'Profile updated successfully!';
                 profileMessage.className = 'message success';
             }
+
+            // Update global variable if save succeeds?
+            currentLogoPath = result.logo_path || null; 
 
         } catch (error) {
             console.error('Error updating profile:', error);
@@ -909,8 +901,8 @@ function setupLogoUpload() {
             const response = await fetch('/api/profile/logo', {
                 method: 'POST',
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}`
                 },
+                credentials: 'include',
                 body: formData
             });
 
@@ -926,12 +918,22 @@ function setupLogoUpload() {
             }
 
             console.log('Logo uploaded successfully:', result.logoPath);
-            logoPreview.src = result.logoPath + '?t=' + new Date().getTime();
-            logoPreview.style.display = 'block';
-            if (profileMessage) {
-                profileMessage.textContent = 'Logo uploaded successfully!';
-                profileMessage.className = 'message success';
-            }
+            // *** Update global variable on successful upload ***
+            currentLogoPath = result.logoPath || null;
+            console.log("[Logo Upload] Updated currentLogoPath:", currentLogoPath);
+
+            // Update preview (using currentLogoPath)
+            setTimeout(() => {
+                 if (logoPreview) {
+                     const cacheBustUrl = currentLogoPath + '?t=' + new Date().getTime(); 
+                     logoPreview.src = cacheBustUrl; 
+                     logoPreview.style.display = 'block';
+                     if (profileMessage) {
+                         profileMessage.textContent = 'Logo uploaded successfully!';
+                         profileMessage.className = 'message success';
+                     }
+                }
+            }, 100); // 100ms delay
 
         } catch (error) {
             console.error('Error uploading logo:', error);
@@ -970,5 +972,27 @@ function initUserNavigation() {
             
             window.location.hash = sectionId;
         });
+    });
+}
+
+function setupColorPickers() {
+    const colorInputs = [
+        { inputId: 'primary-color', spanId: 'primary-color-value' },
+        { inputId: 'secondary-color', spanId: 'secondary-color-value' },
+        { inputId: 'accent-color', spanId: 'accent-color-value' },
+    ];
+
+    colorInputs.forEach(({ inputId, spanId }) => {
+        const colorInput = document.getElementById(inputId);
+        const valueSpan = document.getElementById(spanId);
+
+        if (colorInput && valueSpan) {
+            // Update span when color input changes
+            colorInput.addEventListener('input', (event) => {
+                valueSpan.textContent = event.target.value.toUpperCase();
+            });
+        } else {
+            console.warn(`Could not find color input #${inputId} or span #${spanId}`);
+        }
     });
 } 

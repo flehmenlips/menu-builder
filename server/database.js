@@ -1,568 +1,576 @@
-const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+// Remove SQLite, add PG
+const { Pool } = require('pg'); 
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') }); // Load .env from root
 
-// Initialize database - THIS IS THE SINGLE CONNECTION
-const db = new sqlite3.Database(path.join(__dirname, '../data/menus.db'), (err) => {
-    if (err) {
-        console.error("FATAL ERROR opening database:", err.message);
-        // Consider exiting if DB can't open?
-        // process.exit(1);
-    } else {
-        console.log("Database connection opened successfully.");
-    }
+// --- PostgreSQL Connection Pool (Exported Directly) ---
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    // Enable SSL for Render connections - Render requires it.
+    // Adjust based on NODE_ENV or URL content if needed for local non-SSL DBs
+    ssl: process.env.DATABASE_URL?.includes('render.com') 
+         ? { rejectUnauthorized: false } 
+         : (process.env.NODE_ENV === 'development' ? false : { rejectUnauthorized: false })
 });
 
-// Enable foreign keys support
-db.run('PRAGMA foreign_keys = ON');
-
-// Create tables
-db.serialize(() => {
-    db.run(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT,
-            is_admin INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            last_login TIMESTAMP,
-            subscription_status TEXT DEFAULT 'free',
-            subscription_end_date TIMESTAMP,
-            reset_token TEXT,
-            reset_token_expires TIMESTAMP
-        )
-    `);
-    
-    db.run(`
-        CREATE TABLE IF NOT EXISTS company_profiles (
-            user_id INTEGER PRIMARY KEY,
-            company_name TEXT,
-            address TEXT,
-            phone TEXT,
-            email TEXT, 
-            website TEXT,
-            logo_path TEXT,
-            primary_color TEXT,
-            secondary_color TEXT,
-            accent_color TEXT,
-            default_font TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS menus (
-            name TEXT PRIMARY KEY,
-            title TEXT,
-            subtitle TEXT,
-            font TEXT,
-            layout TEXT,
-            show_dollar_sign INTEGER DEFAULT 1,
-            show_decimals INTEGER DEFAULT 1,
-            show_section_dividers INTEGER DEFAULT 1,
-            wrap_special_chars INTEGER DEFAULT 1,
-            logo_path TEXT,
-            logo_position TEXT DEFAULT 'top',
-            logo_size TEXT DEFAULT '200',
-            logo_offset TEXT DEFAULT '0',
-            background_color TEXT DEFAULT '#ffffff',
-            text_color TEXT DEFAULT '#000000',
-            accent_color TEXT DEFAULT '#333333',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            user_id INTEGER
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS sections (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            menu_name TEXT,
-            name TEXT,
-            active INTEGER DEFAULT 1,
-            position INTEGER,
-            FOREIGN KEY (menu_name) REFERENCES menus(name) ON DELETE CASCADE
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            section_id INTEGER,
-            name TEXT,
-            description TEXT,
-            price TEXT,
-            active INTEGER DEFAULT 1,
-            position INTEGER,
-            FOREIGN KEY (section_id) REFERENCES sections(id) ON DELETE CASCADE
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS spacers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            menu_name TEXT,
-            size TEXT,
-            unit TEXT,
-            position INTEGER,
-            FOREIGN KEY (menu_name) REFERENCES menus(name) ON DELETE CASCADE
-        )
-    `);
-
-    // --- ADDED: Create content_blocks table ---
-    db.run(`
-        CREATE TABLE IF NOT EXISTS content_blocks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            identifier TEXT UNIQUE NOT NULL,      -- Unique key for fetching public content
-            title TEXT NOT NULL,
-            content TEXT,
-            content_type TEXT DEFAULT 'text',   -- e.g., text, html, image_url
-            section TEXT NOT NULL,            -- Section identifier (e.g., 'homepage_hero', 'faq')
-            order_index INTEGER DEFAULT 0,    -- Order within a section
-            is_active INTEGER DEFAULT 1,      -- 1 for active, 0 for inactive
-            metadata TEXT,                    -- Store additional JSON data if needed
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
-
-    // --- ADDED: Create sessions table ---
-    db.run(`
-        CREATE TABLE IF NOT EXISTS sessions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            token TEXT UNIQUE NOT NULL,       -- The session token itself
-            expires_at TIMESTAMP NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    `);
-    // Create index for faster session lookup
-    db.run(`CREATE INDEX IF NOT EXISTS idx_session_token ON sessions (token)`);
-    db.run(`CREATE INDEX IF NOT EXISTS idx_session_user ON sessions (user_id)`);
-    db.run(`CREATE INDEX IF NOT EXISTS idx_session_expires ON sessions (expires_at)`);
+pool.on('connect', () => {
+    console.log('PostgreSQL connected successfully via pool.'); // Log connection via pool
 });
 
-// --- One-time data updates (Run AFTER tables are definitely created) ---
-console.log("Running one-time data updates after table serialization...");
-// Add user_id column to menus if it doesn't exist
-db.run("ALTER TABLE menus ADD COLUMN user_id INTEGER", [], (err) => {
-    if (err && !err.message.includes('duplicate column name')) {
-        console.error(" Error adding user_id column to menus:", err);
-    } else {
-        if (!err) console.log(" Added user_id column to menus table (or it already existed).");
-        // Assign ownerless menus to admin user (ID 2) - run AFTER alter attempt
-        db.run('UPDATE menus SET user_id = 2 WHERE user_id IS NULL', [], function(updateErr) { // Use function() to get this.changes
-            if (updateErr) {
-                console.error(" Error updating ownerless menus:", updateErr);
-            } else if (this.changes > 0) {
-                console.log(` Assigned ${this.changes} ownerless menus to admin user (ID 2).`);
-            } else {
-                console.log(" No ownerless menus found to assign.");
-            }
-        });
-    }
-});
+// --- Database Initialization Function ---
+const initializeDatabase = async () => {
+    console.log('Initializing database schema for multi-tenancy...');
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN'); // Wrap schema creation in transaction
 
-// Database functions
-const getAllMenus = () => {
-    return new Promise((resolve, reject) => {
-        db.all('SELECT * FROM menus ORDER BY created_at DESC', (err, rows) => {
-            if (err) reject(err);
-            else resolve(rows);
-        });
-    });
-};
+        // Organizations Table
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS organizations (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                subscription_plan_id INTEGER, -- Nullable for now
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+                -- Add constraint for plan ID later if needed
+            )
+        `);
+        console.log('Table organizations checked/created.');
 
-const getMenu = async (name) => {
-    return new Promise((resolve, reject) => {
-        db.get('SELECT * FROM menus WHERE name = ?', [name], async (err, menu) => {
-            if (err) reject(err);
-            else if (!menu) resolve(null);
-            else {
-                try {
-                    // Get all elements (sections and spacers)
-                    const sections = await getSections(name);
-                    const spacers = await getSpacers(name);
-                    
-                    // Combine sections and spacers into elements array
-                    const elements = [...sections.map(s => ({...s, type: 'section'})), 
-                                     ...spacers.map(s => ({...s, type: 'spacer'}))]
-                                     .sort((a, b) => a.position - b.position);
+        // Users Table - Add organization_id and role
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                organization_id INTEGER, -- Initially allow NULL for migration
+                name TEXT,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT,
+                is_admin BOOLEAN DEFAULT false, -- Keep for Super Admin?
+                role TEXT NOT NULL DEFAULT 'USER', -- Default role
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                last_login TIMESTAMPTZ,
+                subscription_status TEXT DEFAULT 'free',
+                subscription_end_date TIMESTAMPTZ,
+                reset_token TEXT,
+                reset_token_expires TIMESTAMPTZ
+                -- Add FK constraint after migration
+            )
+        `);
+         // Add columns if they don't exist (idempotent)
+        await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS organization_id INTEGER`);
+        await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'USER'`);
+        console.log('Table users checked/created/altered.');
 
-                    // Return complete menu object
-                    resolve({
-                        ...menu,
-                        sections, // Keep for backward compatibility
-                        elements // New format
-                    });
-                } catch (error) {
-                    reject(error);
-                }
-            }
-        });
-    });
-};
+        // Company Profiles Table (already references users.id)
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS company_profiles (
+                user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                company_name TEXT,
+                address TEXT,
+                phone TEXT,
+                email TEXT, 
+                website TEXT,
+                logo_path TEXT,
+                primary_color TEXT,
+                secondary_color TEXT,
+                accent_color TEXT,
+                default_font TEXT,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log('Table company_profiles checked/created.');
 
-const getSections = async (menuName) => {
-    return new Promise((resolve, reject) => {
-        db.all('SELECT * FROM sections WHERE menu_name = ? ORDER BY position', [menuName], async (err, sections) => {
-            if (err) reject(err);
-            else {
-                try {
-                    for (const section of sections) {
-                        const items = await getItems(section.id);
-                        section.items = items;
-                    }
-                    resolve(sections);
-                } catch (error) {
-                    reject(error);
-                }
-            }
-        });
-    });
-};
+        // Menus Table - Add organization_id
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS menus (
+                id SERIAL PRIMARY KEY,
+                organization_id INTEGER, -- Initially allow NULL for migration
+                user_id INTEGER REFERENCES users(id) ON DELETE SET NULL, 
+                name TEXT NOT NULL, 
+                title TEXT,
+                subtitle TEXT,
+                font TEXT,
+                layout TEXT,
+                show_dollar_sign BOOLEAN DEFAULT true,
+                show_decimals BOOLEAN DEFAULT true,
+                show_section_dividers BOOLEAN DEFAULT true,
+                wrap_special_chars BOOLEAN DEFAULT true,
+                logo_path TEXT,
+                logo_position TEXT DEFAULT 'top',
+                logo_size TEXT DEFAULT '200',
+                logo_offset TEXT DEFAULT '0',
+                background_color TEXT DEFAULT '#ffffff',
+                text_color TEXT DEFAULT '#000000',
+                accent_color TEXT DEFAULT '#333333',
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (organization_id, name) -- Menu name unique within an org
+                 -- Add FK constraint after migration
+            )
+        `);
+         // Add column if it doesn't exist (idempotent)
+        await client.query(`ALTER TABLE menus ADD COLUMN IF NOT EXISTS organization_id INTEGER`);
+        console.log('Table menus checked/created/altered.');
 
-const getItems = async (sectionId) => {
-    return new Promise((resolve, reject) => {
-        db.all('SELECT * FROM items WHERE section_id = ? ORDER BY position', [sectionId], (err, items) => {
-            if (err) reject(err);
-            else resolve(items);
-        });
-    });
-};
+        // Sections Table (references menus.id)
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS sections (
+                id SERIAL PRIMARY KEY,
+                menu_id INTEGER REFERENCES menus(id) ON DELETE CASCADE,
+                name TEXT,
+                active BOOLEAN DEFAULT true,
+                position INTEGER
+            )
+        `);
+        console.log('Table sections checked/created.');
 
-const getSpacers = async (menuName) => {
-    return new Promise((resolve, reject) => {
-        db.all('SELECT * FROM spacers WHERE menu_name = ? ORDER BY position', [menuName], (err, spacers) => {
-            if (err) reject(err);
-            else resolve(spacers || []);
-        });
-    });
-};
+        // Items Table (references sections.id)
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS items (
+                id SERIAL PRIMARY KEY,
+                section_id INTEGER REFERENCES sections(id) ON DELETE CASCADE,
+                name TEXT,
+                description TEXT,
+                price TEXT,
+                active BOOLEAN DEFAULT true,
+                position INTEGER
+            )
+        `);
+        console.log('Table items checked/created.');
 
-const getMenusByUserId = (userId) => {
-    return new Promise((resolve, reject) => {
-        db.all('SELECT * FROM menus WHERE user_id = ? ORDER BY created_at DESC', [userId], (err, rows) => {
-            if (err) reject(err);
-            else resolve(rows);
-        });
-    });
-};
+        // Spacers Table (references menus.id)
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS spacers (
+                id SERIAL PRIMARY KEY,
+                menu_id INTEGER REFERENCES menus(id) ON DELETE CASCADE, 
+                size TEXT,
+                unit TEXT,
+                position INTEGER
+            )
+        `);
+        console.log('Table spacers checked/created.');
 
-const createMenu = async (name, title, subtitle, font, layout, showDollarSign, showDecimals, showSectionDividers, elements, logoPath, logoPosition, logoSize, logoOffset, backgroundColor, textColor, accentColor, userId) => {
-    return new Promise((resolve, reject) => {
-        // Ensure logoSize is stored as a string
-        const logoSizeValue = logoSize ? String(logoSize) : '200';
-        // Ensure logoOffset is stored as a string
-        const logoOffsetValue = logoOffset ? String(logoOffset) : '0';
+        // Content Blocks Table (No change needed for multi-tenancy phase 1)
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS content_blocks (
+                id SERIAL PRIMARY KEY,
+                identifier TEXT UNIQUE NOT NULL,
+                title TEXT NOT NULL,
+                content TEXT,
+                content_type TEXT DEFAULT 'text',
+                section TEXT NOT NULL,
+                order_index INTEGER DEFAULT 0,
+                is_active BOOLEAN DEFAULT true,
+                metadata JSONB, -- Use JSONB for metadata
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log('Table content_blocks checked/created.');
+
+        // Sessions Table (references users.id)
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS sessions (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                token TEXT UNIQUE NOT NULL,
+                expires_at TIMESTAMPTZ NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log('Table sessions checked/created.');
+
+        // Indexes 
+        // ... (existing indexes are likely okay, add FK indexes later) ...
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_users_org ON users (organization_id)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_menus_org ON menus (organization_id)`);
+        console.log('Indexes checked/created.');
         
-        db.run(
-            `INSERT INTO menus (
+        // Commit schema changes
+        await client.query('COMMIT');
+        console.log('Database schema initialization transaction committed.');
+
+    } catch (err) {
+        // Rollback on error
+        await client.query('ROLLBACK');
+        console.error('ERROR initializing database schema transaction:', err);
+        throw err; // Re-throw error to prevent server start potentially
+    } finally {
+        client.release(); 
+        console.log(' InitializeDatabase: Released client.');
+    }
+};
+
+// --- Database Migration Function ---
+const runDataMigration = async () => {
+    console.log('Running data migration for multi-tenancy...');
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Add Foreign Key constraints AFTER ensuring columns exist and data is potentially migrated
+        console.log('Adding foreign key constraints...');
+        await client.query(`ALTER TABLE users ADD CONSTRAINT fk_user_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED`);
+        await client.query(`ALTER TABLE menus ADD CONSTRAINT fk_menu_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED`);
+        
+        // Find users needing migration
+        const usersToMigrateResult = await client.query('SELECT id, name, email FROM users WHERE organization_id IS NULL');
+        const usersToMigrate = usersToMigrateResult.rows;
+        console.log(`Found ${usersToMigrate.length} users to migrate.`);
+
+        for (const user of usersToMigrate) {
+            console.log(` Migrating user ID: ${user.id}, Email: ${user.email}`);
+            // Create organization for the user
+            const orgName = `${user.name || user.email.split('@')[0]}'s Organization`;
+            const insertOrgQuery = 'INSERT INTO organizations (name) VALUES ($1) RETURNING id';
+            const orgResult = await client.query(insertOrgQuery, [orgName]);
+            const newOrgId = orgResult.rows[0].id;
+            console.log(`  - Created organization "${orgName}" with ID: ${newOrgId}`);
+
+            // Update user with org ID and role
+            const updateUserQuery = 'UPDATE users SET organization_id = $1, role = $2 WHERE id = $3';
+            await client.query(updateUserQuery, [newOrgId, 'TENANT_ADMIN', user.id]);
+            console.log(`  - Updated user ${user.id} with organization_id=${newOrgId}, role=TENANT_ADMIN`);
+
+            // Update user's menus with org ID
+            const updateMenusQuery = 'UPDATE menus SET organization_id = $1 WHERE user_id = $2 AND organization_id IS NULL';
+            const menuUpdateResult = await client.query(updateMenusQuery, [newOrgId, user.id]);
+            console.log(`  - Updated ${menuUpdateResult.rowCount} menus for user ${user.id} with organization_id=${newOrgId}`);
+        }
+
+        // Make organization_id NOT NULL after migration
+        console.log('Setting organization_id columns to NOT NULL...');
+        await client.query('ALTER TABLE users ALTER COLUMN organization_id SET NOT NULL');
+        await client.query('ALTER TABLE menus ALTER COLUMN organization_id SET NOT NULL');
+
+        await client.query('COMMIT');
+        console.log('Data migration transaction committed successfully.');
+
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('ERROR during data migration transaction:', err);
+        // Decide if this should prevent startup
+    } finally {
+        client.release();
+        console.log('Migration script: Released client.');
+    }
+};
+
+// Run initialization and migration
+const setupDatabase = async () => {
+    await initializeDatabase();
+    await runDataMigration();
+};
+
+// Call setup on load
+setupDatabase();
+
+// --- Database Functions (using pool.query or query helper) ---
+
+// Fetch all menus (potentially for admin? or public? - needs scoping)
+const getAllMenus = async () => {
+    const result = await pool.query('SELECT * FROM menus ORDER BY created_at DESC');
+    return result.rows;
+};
+
+// Fetch all menus for a specific ORGANIZATION
+const getMenusByOrgId = async (orgId) => {
+    const query = 'SELECT * FROM menus WHERE organization_id = $1 ORDER BY created_at DESC';
+    const result = await pool.query(query, [orgId]);
+    return result.rows;
+};
+
+// Helper to fetch sections/items/spacers for a menu ID
+const getMenuElements = async (menuId) => {
+    const sectionsQuery = 'SELECT * FROM sections WHERE menu_id = $1 ORDER BY position';
+    const sectionsResult = await pool.query(sectionsQuery, [menuId]);
+    const sections = sectionsResult.rows;
+
+    for (const section of sections) {
+        const itemsQuery = 'SELECT * FROM items WHERE section_id = $1 ORDER BY position';
+        const itemsResult = await pool.query(itemsQuery, [section.id]);
+        section.items = itemsResult.rows;
+    }
+
+    const spacersQuery = 'SELECT * FROM spacers WHERE menu_id = $1 ORDER BY position';
+    const spacersResult = await pool.query(spacersQuery, [menuId]);
+    const spacers = spacersResult.rows;
+
+    // Combine and sort
+    const elements = [
+        ...sections.map(s => ({ ...s, type: 'section' })),
+        ...spacers.map(s => ({ ...s, type: 'spacer' })),
+    ].sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity));
+    
+    return elements;
+};
+
+// Get a specific menu by NAME and ORGANIZATION_ID
+const getMenuByNameAndOrg = async (name, orgId) => {
+    const menuQuery = 'SELECT * FROM menus WHERE name = $1 AND organization_id = $2';
+    const menuResult = await pool.query(menuQuery, [name, orgId]);
+    if (menuResult.rows.length === 0) return null; 
+    const menu = menuResult.rows[0];
+    menu.elements = await getMenuElements(menu.id);
+    return menu;
+};
+
+// Get a menu by ID (scope to org? Maybe not needed if ID is unique)
+const getMenuById = async (menuId) => {
+    const menuQuery = 'SELECT * FROM menus WHERE id = $1';
+    const menuResult = await pool.query(menuQuery, [menuId]);
+    if (menuResult.rows.length === 0) return null;
+    const menu = menuResult.rows[0];
+    menu.elements = await getMenuElements(menu.id);
+    return menu;
+};
+
+// Create Menu (includes orgId)
+const createMenu = async (name, title, subtitle, font, layout, showDollarSign, showDecimals, showSectionDividers, elements, logoPath, logoPosition, logoSize, logoOffset, backgroundColor, textColor, accentColor, userId, orgId) => {
+    console.log(`[DB createMenu] Starting transaction for menu: ${name}, user: ${userId}`);
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN'); 
+        console.log(`[DB createMenu] BEGIN transaction`);
+
+        const insertMenuQuery = `
+            INSERT INTO menus (
                 name, title, subtitle, font, layout, 
                 show_dollar_sign, show_decimals, show_section_dividers,
                 logo_path, logo_position, logo_size, logo_offset,
-                background_color, text_color, accent_color,
-                user_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-                name, title, subtitle, font, layout, 
-                showDollarSign, showDecimals, showSectionDividers,
-                logoPath, logoPosition, logoSizeValue, logoOffsetValue,
-                backgroundColor, textColor, accentColor,
-                userId
-            ],
-            async function(err) {
-                if (err) {
-                    console.error('Error creating menu:', err);
-                    reject(err);
+                background_color, text_color, accent_color, user_id, organization_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+            RETURNING id;
+        `;
+        const menuParams = [
+            name, title ?? '', subtitle ?? '', font ?? 'Playfair Display', layout ?? 'single',
+            showDollarSign !== false, showDecimals !== false, showSectionDividers !== false, // Defaults true
+            logoPath, logoPosition ?? 'top', String(logoSize ?? '200'), String(logoOffset ?? '0'),
+            backgroundColor ?? '#ffffff', textColor ?? '#000000', accentColor ?? '#333333',
+            userId, orgId
+        ];
+        console.log(`[DB createMenu] Running INSERT INTO menus...`);
+        const menuResult = await client.query(insertMenuQuery, menuParams);
+        const menuId = menuResult.rows[0].id;
+        console.log(`[DB createMenu] Menu row inserted. New menu ID: ${menuId}`);
+
+        if (elements && Array.isArray(elements)) {
+            console.log(`[DB createMenu] Processing ${elements.length} elements...`);
+            for (const [index, element] of elements.entries()) {
+                const position = element.position ?? index;
+                if (element.type === 'spacer') {
+                    console.log(`[DB createMenu]   - Creating spacer at position ${position}`);
+                    await createSpacer(client, menuId, element, position);
                 } else {
-                    try {
-                        // Process elements (sections and spacers)
-                        if (elements && Array.isArray(elements)) {
-                            await Promise.all(
-                                elements.map(async (element, index) => {
-                                    // Use index as position if not specified
-                                    const position = element.position !== undefined ? element.position : index;
-                                    
-                                    if (element.type === 'spacer') {
-                                        await createSpacer(name, element, position);
-                                    } else {
-                                        // Default to section type if not specified
-                                        await createSection(name, element, position);
-                                    }
-                                })
-                            );
-                        }
-                        
-                        const menu = await getMenu(name);
-                        resolve(menu);
-                    } catch (error) {
-                        reject(error);
-                    }
+                    console.log(`[DB createMenu]   - Creating section "${element.name}" at position ${position}`);
+                    await createSection(client, menuId, element, position);
                 }
             }
-        );
-    });
-};
-
-const createSection = async (menuName, section, position) => {
-    return new Promise((resolve, reject) => {
-        // Add validation for required fields
-        if (!section || !section.name) {
-            console.warn('Invalid section data: missing name');
-            return resolve(); // Skip this section but don't fail
+             console.log(`[DB createMenu] Finished processing elements.`);
         }
 
-        const active = section.active === undefined ? 1 : section.active;
+        console.log(`[DB createMenu] Committing transaction...`);
+        await client.query('COMMIT'); 
+        console.log(`[DB createMenu] Transaction COMMITTED.`);
         
-        db.run(
-            'INSERT INTO sections (menu_name, name, active, position) VALUES (?, ?, ?, ?)',
-            [menuName, section.name, active, position],
-            async function(err) {
-                if (err) {
-                    console.error('Error creating section:', err);
-                    return resolve(); // Don't reject, just log and continue
-                }
-                
-                try {
-                    // Only process items if they exist
-                    if (section.items && Array.isArray(section.items)) {
-                        // Filter out invalid items
-                        const validItems = section.items.filter(item => 
-                            item && typeof item === 'object' && item.name
-                        );
-                        
-                        if (validItems.length > 0) {
-                            await Promise.all(
-                                validItems.map((item, index) => {
-                                    try {
-                                        return createItem(this.lastID, item, index);
-                                    } catch (error) {
-                                        console.error(`Error creating item at index ${index}:`, error);
-                                        return Promise.resolve(); // Continue with other items
-                                    }
-                                })
-                            );
-                        }
-                    }
-                    resolve();
-                } catch (error) {
-                    console.error('Error processing section items:', error);
-                    resolve(); // Don't reject, just log and continue
-                }
+        console.log(`[DB createMenu] Fetching final created menu by ID ${menuId}`);
+        const finalMenu = await getMenuById(menuId); 
+        console.log(`[DB createMenu] Successfully created and fetched menu: ${name}`);
+        return finalMenu; 
+
+    } catch (e) {
+        console.error(`[DB createMenu] *** ERROR in transaction for menu: ${name}. Rolling back... ***`, e);
+        await client.query('ROLLBACK'); 
+        console.log(`[DB createMenu] Transaction ROLLED BACK.`);
+        throw e; 
+    } finally {
+        client.release();
+         console.log(`[DB createMenu] Client released.`);
+    }
+};
+
+// Create Section (takes PG client for transaction)
+const createSection = async (client, menuId, section, position) => {
+    if (!section || !section.name) {
+        console.warn('Invalid section data passed to createSection');
+        return;
+    }
+    const insertSectionQuery = 'INSERT INTO sections (menu_id, name, active, position) VALUES ($1, $2, $3, $4) RETURNING id';
+    const sectionResult = await client.query(insertSectionQuery, [menuId, section.name, section.active !== false, position]);
+    const sectionId = sectionResult.rows[0].id;
+
+    if (section.items && Array.isArray(section.items)) {
+        for (const [index, item] of section.items.entries()) {
+            if (item && typeof item === 'object' && item.name) {
+                await createItem(client, sectionId, item, item.position ?? index);
             }
-        );
-    });
+        }
+    }
 };
 
-const createItem = async (sectionId, item, position) => {
-    return new Promise((resolve, reject) => {
-        // Add validation for required fields
-        if (!item || !item.name) {
-            console.warn('Invalid item data: missing name');
-            return resolve(); // Skip this item but don't fail
+// Create Item (takes PG client for transaction)
+const createItem = async (client, sectionId, item, position) => {
+    if (!item || !item.name) {
+        console.warn('Invalid item data passed to createItem');
+        return;
+    }
+    const insertItemQuery = 'INSERT INTO items (section_id, name, description, price, active, position) VALUES ($1, $2, $3, $4, $5, $6)';
+    await client.query(insertItemQuery, [sectionId, item.name, item.description ?? '', item.price ?? '', item.active !== false, position]);
+};
+
+// Create Spacer (takes PG client for transaction)
+const createSpacer = async (client, menuId, spacer, position) => {
+    if (!spacer) {
+        console.warn('Invalid spacer data passed to createSpacer');
+        return;
+    }
+    const insertSpacerQuery = 'INSERT INTO spacers (menu_id, size, unit, position) VALUES ($1, $2, $3, $4)';
+    await client.query(insertSpacerQuery, [menuId, spacer.size ?? '30', spacer.unit ?? 'px', position]);
+};
+
+// Update Menu (includes orgId check)
+const updateMenu = async (name, orgId, userId, updates) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        // Verify ownership by ORG ID
+        const checkResult = await client.query('SELECT id FROM menus WHERE name = $1 AND organization_id = $2', [name, orgId]);
+        if (checkResult.rows.length === 0) {
+            throw new Error('Menu not found or user not authorized.');
+        }
+        const menuId = checkResult.rows[0].id;
+
+        // Update basic menu fields
+        const setClauses = [];
+        const params = [];
+        let paramIndex = 1;
+        const fieldMapping = { title: 'title', subtitle: 'subtitle', font: 'font', layout: 'layout', showDollarSign: 'show_dollar_sign', showDecimals: 'show_decimals', showSectionDividers: 'show_section_dividers', logoPath: 'logo_path', logoPosition: 'logo_position', logoSize: 'logo_size', logoOffset: 'logo_offset', backgroundColor: 'background_color', textColor: 'text_color', accentColor: 'accent_color' };
+
+        for (const key in updates) {
+            if (key === 'elements') continue;
+            const dbColumn = fieldMapping[key];
+            if (!dbColumn) { console.warn(`updateMenu: Skipping unknown field ${key}`); continue; }
+            let value = updates[key];
+            if (key === 'logoSize') value = String(value ?? '');
+            if (key === 'logoOffset') value = String(value ?? '0');
+            if (value !== undefined) { setClauses.push(`${dbColumn} = $${paramIndex++}`); params.push(value); }
         }
 
-        // Set default values for optional properties
-        const description = item.description || '';
-        const price = item.price || '';
-        const active = item.active === undefined ? 1 : item.active;
-        
-        db.run(
-            'INSERT INTO items (section_id, name, description, price, active, position) VALUES (?, ?, ?, ?, ?, ?)',
-            [sectionId, item.name, description, price, active, position],
-            function(err) {
-                if (err) {
-                    console.error('Error creating item:', err);
-                    resolve(); // Don't reject, just log and continue
+        // Update user_id to reflect last editor
+        if (!updates.user_id) { // Only add if not explicitly provided in updates
+             updates.user_id = userId; // Add last editor implicitly
+        }
+
+        if (setClauses.length > 0) {
+            setClauses.push(`updated_at = CURRENT_TIMESTAMP`);
+            params.push(menuId); // For WHERE id = $N
+            const updateSql = `UPDATE menus SET ${setClauses.join(', ')} WHERE id = $${paramIndex}`;
+            await client.query(updateSql, params);
+        }
+
+        // Update elements if provided
+        if (updates.elements && Array.isArray(updates.elements)) {
+            // Delete old elements first (within transaction)
+            await client.query('DELETE FROM items WHERE section_id IN (SELECT id FROM sections WHERE menu_id = $1)', [menuId]);
+            await client.query('DELETE FROM sections WHERE menu_id = $1', [menuId]);
+            await client.query('DELETE FROM spacers WHERE menu_id = $1', [menuId]);
+
+            // Create new elements
+            for (const [index, element] of updates.elements.entries()) {
+                const position = element.position ?? index;
+                if (element.type === 'spacer') {
+                    await createSpacer(client, menuId, element, position);
                 } else {
-                    resolve();
+                    await createSection(client, menuId, element, position);
                 }
             }
-        );
-    });
-};
-
-const createSpacer = async (menuName, spacer, position) => {
-    return new Promise((resolve, reject) => {
-        // Add validation for required fields
-        if (!spacer) {
-            console.warn('Invalid spacer data: missing spacer object');
-            return resolve(); // Skip this spacer but don't fail
         }
 
-        // Set default values for required properties
-        const size = spacer.size || '30';
-        const unit = spacer.unit || 'px';
-        
-        db.run(
-            'INSERT INTO spacers (menu_name, size, unit, position) VALUES (?, ?, ?, ?)',
-            [menuName, size, unit, position],
-            function(err) {
-                if (err) {
-                    console.error('Error creating spacer:', err);
-                    resolve(); // Don't reject, just log and continue
+        await client.query('COMMIT');
+        return getMenuById(menuId); // Return updated menu
+
+    } catch (e) {
+        await client.query('ROLLBACK');
+        console.error("Error in updateMenu transaction:", e);
+        throw e;
+    } finally {
+        client.release();
+    }
+};
+
+// Delete Menu (checks orgId)
+const deleteMenuByNameAndOrg = async (name, orgId) => {
+     const checkResult = await pool.query('SELECT id FROM menus WHERE name = $1 AND organization_id = $2', [name, orgId]);
+     if (checkResult.rows.length === 0) {
+         throw new Error('Menu not found or user not authorized.');
+     }
+     const menuId = checkResult.rows[0].id;
+     const deleteResult = await pool.query('DELETE FROM menus WHERE id = $1', [menuId]);
+     return deleteResult.rowCount > 0;
+};
+
+// Duplicate Menu (uses orgId)
+const duplicateMenu = async (sourceName, newName, userId, orgId) => {
+     const client = await pool.connect();
+     try {
+        await client.query('BEGIN');
+        // Verify source belongs to org
+        const sourceMenu = await getMenuByNameAndOrg(sourceName, orgId); 
+        if (!sourceMenu) throw new Error('Source menu not found or not authorized.');
+        // Check if new name exists in org
+        const checkExistingQuery = 'SELECT id FROM menus WHERE name = $1 AND organization_id = $2';
+        const existingResult = await client.query(checkExistingQuery, [newName, orgId]);
+        if (existingResult.rows.length > 0) throw new Error('Duplicate name exists for org.');
+
+        // Copy sourceMenu data
+        const { id, created_at, updated_at, elements, ...sourceData } = sourceMenu;
+        // Assign new name, current user as creator, and SAME org ID
+        const newMenuData = { ...sourceData, name: newName, user_id: userId, organization_id: orgId }; 
+
+        // Insert new menu row
+        const columns = Object.keys(newMenuData).join(', ');
+        const valuePlaceholders = Object.keys(newMenuData).map((_, i) => `$${i + 1}`).join(', ');
+        const values = Object.values(newMenuData);
+        const insertMenuQuery = `INSERT INTO menus (${columns}) VALUES (${valuePlaceholders}) RETURNING id`;
+        const menuResult = await client.query(insertMenuQuery, values);
+        const newMenuId = menuResult.rows[0].id;
+
+        // Duplicate elements
+        if (elements && Array.isArray(elements)) {
+            for (const [index, element] of elements.entries()) {
+                const position = element.position ?? index;
+                if (element.type === 'spacer') {
+                    await createSpacer(client, newMenuId, element, position);
                 } else {
-                    resolve();
+                    await createSection(client, newMenuId, element, position);
                 }
             }
-        );
-    });
-};
-
-const updateMenu = (name, userId, updates) => {
-    return new Promise((resolve, reject) => {
-        db.get('SELECT * FROM menus WHERE name = ? AND user_id = ?', [name, userId], async (err, menu) => {
-            if (err) return reject(new Error(`DB error checking ownership: ${err.message}`));
-            if (!menu) return reject(new Error('Menu not found or user not authorized.'));
-
-            const setClauses = [];
-            const params = [];
-            const fieldMapping = { showDollarSign: 'show_dollar_sign', /* ... other mappings ... */ };
-
-            for (const key in updates) {
-                if (key === 'elements') continue;
-                const dbColumn = fieldMapping[key] || key;
-                let value = updates[key];
-                if (key === 'logoSize') value = String(value !== undefined ? value : menu.logo_size);
-                if (key === 'logoOffset') value = String(value !== undefined ? value : (menu.logo_offset || '0'));
-                if (value !== undefined) { setClauses.push(`${dbColumn} = ?`); params.push(value); }
-            }
-
-            if (setClauses.length > 0) {
-                setClauses.push('updated_at = CURRENT_TIMESTAMP');
-                params.push(name); params.push(userId);
-                const sql = `UPDATE menus SET ${setClauses.join(', ')} WHERE name = ? AND user_id = ?`;
-                await new Promise((res, rej) => {
-                    db.run(sql, params, function(err) {
-                        if (err) return rej(new Error(`Error updating fields: ${err.message}`));
-                        if (this.changes === 0) return rej(new Error('Update failed, zero rows changed.'));
-                        res();
-                    });
-                });
-            } else if (!updates.elements) {
-                 console.log("No fields or elements to update for menu:", name);
-                 return resolve(menu); // Return current menu if nothing changed
-            }
-
-            try {
-                 if (updates.elements && Array.isArray(updates.elements)) {
-                    await deleteSections(name);
-                    await deleteSpacers(name);
-                    await Promise.all(updates.elements.map((el, i) => el.type === 'spacer' ? createSpacer(name, el, el.position ?? i) : createSection(name, el, el.position ?? i)));
-                 }
-                const updatedMenu = await getMenuByNameAndUser(name, userId);
-                resolve(updatedMenu);
-            } catch (elementError) {
-                reject(new Error(`Error processing elements: ${elementError.message}`));
-            }
-        });
-    });
-};
-
-const deleteSections = (menuName) => {
-    return new Promise((resolve, reject) => {
-        db.run('DELETE FROM sections WHERE menu_name = ?', [menuName], (err) => {
-            if (err) reject(err);
-            else resolve();
-        });
-    });
-};
-
-const deleteSpacers = (menuName) => {
-    return new Promise((resolve, reject) => {
-        db.run('DELETE FROM spacers WHERE menu_name = ?', [menuName], (err) => {
-            if (err) reject(err);
-            else resolve();
-        });
-    });
-};
-
-const getMenuByNameAndUser = (name, userId) => {
-    return new Promise(async (resolve, reject) => {
-        db.get('SELECT * FROM menus WHERE name = ? AND user_id = ?', [name, userId], async (err, menu) => {
-            if (err) return reject(err);
-            if (!menu) return resolve(null);
-            try {
-                const sections = await getSections(name);
-                const spacers = await getSpacers(name);
-                const elements = [...sections.map(s => ({...s, type: 'section'})), ...spacers.map(s => ({...s, type: 'spacer'}))].sort((a, b) => a.position - b.position);
-                menu.elements = elements;
-                resolve(menu);
-            } catch (fetchErr) { reject(fetchErr); }
-        });
-    });
-};
-
-const deleteMenuByNameAndUser = (name, userId) => {
-    return new Promise((resolve, reject) => {
-        db.get('SELECT id FROM menus WHERE name = ? AND user_id = ?', [name, userId], (err, menu) => {
-            if (err) return reject(new Error(`DB error checking ownership: ${err.message}`));
-            if (!menu) return reject(new Error('Menu not found or not authorized.'));
-            
-            // Assuming CASCADE delete handles sections/items/spacers
-            db.run('DELETE FROM menus WHERE name = ? AND user_id = ?', [name, userId], function(err) {
-                if (err) return reject(new Error(`Error deleting menu: ${err.message}`));
-                if (this.changes === 0) return reject(new Error('Deletion failed, zero rows changed.'));
-                resolve(true);
-            });
-        });
-    });
-};
-
-const duplicateMenu = (sourceName, newName, userId) => {
-    return new Promise(async (resolve, reject) => {
-        try {
-            const sourceMenu = await getMenuByNameAndUser(sourceName, userId);
-            if (!sourceMenu) return reject(new Error('Source menu not found or user not authorized.'));
-            const existingMenu = await getMenuByNameAndUser(newName, userId);
-            if (existingMenu) return reject(new Error('Duplicate name exists for this user.'));
-
-            const { id, created_at, updated_at, elements, ...sourceData } = sourceMenu;
-            const newMenuData = { ...sourceData, name: newName, user_id: userId }; // Ensure correct name & user
-
-            const columns = Object.keys(newMenuData).join(', ');
-            const placeholders = Object.keys(newMenuData).map(() => '?').join(', ');
-            const values = Object.values(newMenuData);
-
-            await new Promise((res, rej) => {
-                 db.run(`INSERT INTO menus (${columns}) VALUES (${placeholders})`, values, function(err) {
-                     if (err) return rej(new Error(`DB error inserting duplicate: ${err.message}`));
-                     res();
-                 });
-            });
-            
-            if (elements && Array.isArray(elements)) {
-                await Promise.all(elements.map((el, i) => el.type === 'spacer' ? createSpacer(newName, el, el.position ?? i) : createSection(newName, el, el.position ?? i)));
-            }
-
-            const completeNewMenu = await getMenuByNameAndUser(newName, userId);
-            resolve(completeNewMenu);
-        } catch (error) {
-            console.error(`Error duplicating menu for user ${userId}:`, error);
-            try { await deleteMenuByNameAndUser(newName, userId).catch(() => {}); } finally { reject(error); }
         }
-    });
+
+        await client.query('COMMIT');
+        return getMenuById(newMenuId); 
+     } catch (e) {
+        await client.query('ROLLBACK');
+        console.error("Error in duplicateMenu transaction:", e);
+        throw e;
+     } finally {
+        client.release();
+     }
 };
 
-// Ensure module.exports is present and correct
+// Export the pool, query helper, init function, and other DB functions
 module.exports = {
-    db, // Export the connection object itself
-    getAllMenus,
-    getMenu, // Original getter
-    getMenuByNameAndUser, // User-specific getter
+    pool, 
+    query: (text, params) => pool.query(text, params),
+    setupDatabase, // Export the main setup function
+    getAllMenus, 
+    getMenusByOrgId, // Renamed
+    getMenuById,
+    getMenuByNameAndOrg, // Renamed
     createMenu,
     updateMenu, 
-    deleteMenuByNameAndUser, // User-specific delete
-    getMenusByUserId,
-    duplicateMenu, 
-    // Include other necessary exports if they existed before the deletion
-    getSections, 
-    getItems, 
-    getSpacers,
-    deleteSections,
-    deleteSpacers 
+    deleteMenuByNameAndOrg, // Renamed
+    duplicateMenu,
+    // Add other necessary exports here if they were refactored
 };

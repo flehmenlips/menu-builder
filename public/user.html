@@ -62,6 +62,7 @@
             <header class="user-header">
                 <div class="header-left">
                     <h1>User Portal</h1>
+                    <a href="/Menu_Builder-V4.html" class="back-to-app-link">← Back to Menu Builder</a>
                 </div>
                 <div class="header-right">
                     <div class="user-info">
@@ -174,12 +175,12 @@
                                     <input type="tel" id="company-phone" name="company-phone">
                                 </div>
                                 <div class="form-group">
-                                    <label for="company-email">Contact Email</label>
-                                    <input type="email" id="company-email" name="company-email">
+                                    <label>Account Email</label> 
+                                    <p id="profile-account-email" class="form-static-text">Loading...</p>
                                 </div>
                                 <div class="form-group">
                                     <label for="company-website">Website</label>
-                                    <input type="url" id="company-website" name="company-website">
+                                    <input type="text" id="company-website" name="company-website">
                                 </div>
                             </div>
                             <div class="profile-branding">
@@ -189,17 +190,26 @@
                                     <input type="file" id="company-logo-upload" accept="image/*">
                                     <img id="logo-preview" src="#" alt="Logo Preview" style="max-width: 150px; max-height: 100px; margin-top: 10px; display: none;">
                                 </div>
-                                <div class="form-group color-picker">
+                                <div class="form-group color-picker-group">
                                     <label for="primary-color">Primary Color</label>
-                                    <input type="color" id="primary-color" name="primary-color" value="#4a6cf7">
+                                    <div class="color-input-wrapper">
+                                        <input type="color" id="primary-color" name="primary-color" value="#4a6cf7">
+                                        <span id="primary-color-value" class="color-hex-value">#4a6cf7</span>
+                                    </div>
                                 </div>
-                                <div class="form-group color-picker">
+                                <div class="form-group color-picker-group">
                                     <label for="secondary-color">Secondary Color</label>
-                                    <input type="color" id="secondary-color" name="secondary-color" value="#6c757d">
+                                    <div class="color-input-wrapper">
+                                        <input type="color" id="secondary-color" name="secondary-color" value="#6c757d">
+                                        <span id="secondary-color-value" class="color-hex-value">#6c757d</span>
+                                    </div>
                                 </div>
-                                <div class="form-group color-picker">
+                                <div class="form-group color-picker-group">
                                     <label for="accent-color">Accent Color</label>
-                                    <input type="color" id="accent-color" name="accent-color" value="#343a40">
+                                    <div class="color-input-wrapper">
+                                        <input type="color" id="accent-color" name="accent-color" value="#343a40">
+                                        <span id="accent-color-value" class="color-hex-value">#343a40</span>
+                                    </div>
                                 </div>
                                 <div class="form-group">
                                     <label for="default-font">Default Font</label>
