@@ -215,7 +215,7 @@ app.get('/api/auth/verify', async (req, res) => {
                 id: user.id,
                 name: user.name,
                 email: user.email,
-                is_admin: user.is_admin === 1 // Include admin status if header needs it
+                is_admin: user.is_admin === true // CORRECT CHECK: Check for boolean true
             }
         };
         console.log("GET /api/auth/verify: Responding with success:", responseData);
@@ -274,9 +274,9 @@ app.post('/api/admin/login', async (req, res) => {
             password_hash_length: user.password_hash ? user.password_hash.length : 0
         });
         
-        // Check if user is admin
-        if (user.is_admin !== 1) {
-            console.log('Admin login failed: User is not an admin');
+        // Check if user is admin (using boolean check)
+        if (user.is_admin !== true) {
+            console.log('Admin login failed: User is not an admin (is_admin value is not true).');
             return res.status(401).json({ error: 'User does not have admin privileges' });
         }
         
