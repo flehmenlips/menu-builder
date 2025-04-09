@@ -188,79 +188,83 @@ function initDashboard(user) { // Added user parameter
 
 // Fetch dashboard stats - ACCEPTS USER OBJECT
 function fetchDashboardStats(user) { 
-    // console.log("[fetchDashboardStats] ENTERED FUNCTION."); // Remove log
-    try { 
+    console.log("[fetchDashboardStats] ENTERED FUNCTION."); 
+    // Remove outer try...catch, handle errors within promises
+    // try { 
         if (!user || !user.token) { 
             console.error('fetchDashboardStats: Auth token not provided.'); 
             return; 
         }
-        // console.log("[fetchDashboardStats] Starting fetch..."); // Remove log
+        console.log("[fetchDashboardStats] Starting fetches...");
 
         // Fetch total users
         fetch(`${API_BASE_URL}/admin/stats/users`, {
             headers: {
-                'Authorization': `Bearer ${user.token}`, 
+                'Authorization': `Bearer ${user.token}`,
                 'Content-Type': 'application/json'
             },
             credentials: 'include'
         })
         .then(response => {
-            // console.log("[fetchDashboardStats] Users API status:", response.status); // Remove log
-            if (!response.ok) throw new Error(`Users API Error: ${response.status}`);
+            console.log("[fetchDashboardStats] Users API status:", response.status);
+            if (!response.ok) throw new Error(`Users API HTTP Error: ${response.status}`);
             return response.json();
         })
         .then(data => {
-            // console.log("[fetchDashboardStats] Users API data:", data); // Remove log
-            if (data.error) throw new Error(data.error);
+            console.log("[fetchDashboardStats] Users API data received.");
+            if (data.error) throw new Error(`Users API Data Error: ${data.error}`);
             const totalUsers = document.getElementById('total-users');
             const proUsers = document.getElementById('pro-users');
             const newUsers = document.getElementById('new-users');
-            // console.log(`[fetchDashboardStats] Found elements - totalUsers: ${!!totalUsers}, ...`); // Remove log
-            if (totalUsers) totalUsers.textContent = data.count || 0;
-            if (proUsers) proUsers.textContent = data.proCount || 0;
-            if (newUsers) newUsers.textContent = data.newThisMonth || 0;
-            // console.log("[fetchDashboardStats] Updated user stats."); // Remove log
+            if (totalUsers) totalUsers.textContent = data.count ?? 'N/A'; // Use nullish coalescing
+            if (proUsers) proUsers.textContent = data.proCount ?? 'N/A';
+            if (newUsers) newUsers.textContent = data.newThisMonth ?? 'N/A';
+            console.log("[fetchDashboardStats] User stats elements updated.");
         })
         .catch(error => {
-            console.error('[fetchDashboardStats] Error user stats:', error);
-            // Restore original error handling
+            // This catch handles errors from the fetch OR the .then() blocks above it
+            console.error('[fetchDashboardStats] Error in Users fetch/processing chain:', error);
+            // Set elements to Error
             const totalUsers = document.getElementById('total-users');
             const proUsers = document.getElementById('pro-users');
             const newUsers = document.getElementById('new-users');
             if (totalUsers) totalUsers.textContent = 'Error';
             if (proUsers) proUsers.textContent = 'Error';
             if (newUsers) newUsers.textContent = 'Error';
-        });
+        }); // No further .catch needed here, as it's caught above
 
         // Fetch total menus 
         fetch(`${API_BASE_URL}/admin/stats/menus`, {
-           // ... headers ...
+           headers: {
+                'Authorization': `Bearer ${user.token}`,
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include' 
         })
         .then(response => {
-            // console.log("[fetchDashboardStats] Menus API status:", response.status); // Remove log
-            if (!response.ok) throw new Error(`Menus API Error: ${response.status}`);
+            console.log("[fetchDashboardStats] Menus API status:", response.status);
+            if (!response.ok) throw new Error(`Menus API HTTP Error: ${response.status}`);
             return response.json();
         })
         .then(data => {
-            // console.log("[fetchDashboardStats] Menus API data:", data); // Remove log
-            if (data.error) throw new Error(data.error);
+            console.log("[fetchDashboardStats] Menus API data received.");
+            if (data.error) throw new Error(`Menus API Data Error: ${data.error}`);
             const totalMenus = document.getElementById('total-menus');
-            // console.log(`[fetchDashboardStats] Found element - totalMenus: ${!!totalMenus}`); // Remove log
-            if (totalMenus) totalMenus.textContent = data.count || 0;
-            // console.log("[fetchDashboardStats] Updated menu stats."); // Remove log
+            if (totalMenus) totalMenus.textContent = data.count ?? 'N/A'; // Use nullish coalescing
+            console.log("[fetchDashboardStats] Menu stats element updated.");
         })
         .catch(error => {
-            console.error('[fetchDashboardStats] Error menu stats:', error);
-            // Restore original error handling
+             // This catch handles errors from the fetch OR the .then() block above it
+            console.error('[fetchDashboardStats] Error in Menus fetch/processing chain:', error);
+            // Set element to Error
             const totalMenus = document.getElementById('total-menus');
             if (totalMenus) totalMenus.textContent = 'Error';
-        });
+        }); // No further .catch needed here
         
-        // console.log("[fetchDashboardStats] Finished setting up fetches."); // Remove log
-
-    } catch (e) { 
-        console.error("[fetchDashboardStats] UNEXPECTED SYNC ERROR:", e);
-    }
+        console.log("[fetchDashboardStats] Finished FUNCTION (fetch calls initiated).");
+    // } catch (e) { // Remove outer try-catch 
+    //     console.error("[fetchDashboardStats] UNEXPECTED SYNC ERROR:", e);
+    // }
 }
 
 
