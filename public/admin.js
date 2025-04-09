@@ -27,34 +27,27 @@ let globalSettingsInitialized = false; // Flag for new section
 
 // Main admin module
 document.addEventListener('DOMContentLoaded', async () => { // Make listener async
-    // --- COMPLETELY SIMPLIFIED FOR TESTING --- 
-    alert("Admin.js: DOMContentLoaded Fired!"); // Simplest possible test
-    console.log("Admin.js: DOMContentLoaded Fired!");
-    // --- END SIMPLIFICATION --- 
-
-    /* --- ORIGINAL CODE COMMENTED OUT FOR TESTING ---
+    // --- Restore original code --- 
     console.log('[DOMContentLoaded] Starting admin auth check...');
     const loggedInUser = await checkAdminAuth(); // Await the result
 
     if (loggedInUser) {
         // User is authenticated and is an admin
-        // Temporarily ONLY log success, do not initialize UI yet
         console.log("*****************************************************");
         console.log("*** [DOMContentLoaded] checkAdminAuth SUCCEEDED! User:", loggedInUser);
-        console.log("*** Page should NOT redirect now.");
         console.log("*****************************************************");
         
-        // displayUserInfo(loggedInUser); // <-- Temporarily Commented Out
-        // setupEventListeners(loggedInUser); // <-- Temporarily Commented Out
+        displayUserInfo(loggedInUser); 
+        setupEventListeners(loggedInUser); 
         // const hash = window.location.hash.substring(1);
-        // navigateToSection(hash || 'dashboard', loggedInUser); // <-- Temporarily Commented Out
+        // navigateToSection(hash || 'dashboard', loggedInUser); // <-- COMMENTED OUT TO ISOLATE
+        console.log("[DOMContentLoaded] navigateToSection call SKIPPED for testing."); // Log that we skipped it
     } else {
         // checkAdminAuth handles redirects, but log just in case
         console.log("*****************************************************");
         console.log("*** [DOMContentLoaded] checkAdminAuth FAILED or user is not admin (returned null).");
         console.log("*****************************************************");
     }
-    --- END ORIGINAL CODE --- */
 });
 
 // ... existing code ...
