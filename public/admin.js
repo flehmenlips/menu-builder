@@ -1095,7 +1095,7 @@ async function checkAdminAuth() { // Make function async
 
     // Token exists, proceed with verification
     console.log('[checkAdminAuth] Token found. Proceeding to verify with /api/auth/verify using token:', user.token);
-    alert(`[checkAdminAuth] Token found. Proceeding to verify with server.`); // Keep this alert for flow
+    // alert(`[checkAdminAuth] Token found. Proceeding to verify with server.`); // Remove alert
 
     try {
         const response = await fetch(`${API_BASE_URL}/auth/verify`, { // Await fetch
@@ -1105,30 +1105,26 @@ async function checkAdminAuth() { // Make function async
                 'Authorization': `Bearer ${user.token}`
             }
         });
-        // ADD ALERT for response status
-        alert(`[checkAdminAuth] /auth/verify response status: ${response.status}`);
+        // alert(`[checkAdminAuth] /auth/verify response status: ${response.status}`); // Remove alert
 
         const data = await response.json(); // Await parsing json
-        // ADD ALERT for parsed data
-        alert(`[checkAdminAuth] /auth/verify parsed data:\n${JSON.stringify(data, null, 2)}`);
+        // alert(`[checkAdminAuth] /auth/verify parsed data:\n${JSON.stringify(data, null, 2)}`); // Remove alert
 
-        // The check that might be failing
-        if (response.status === 401 || !data.authenticated || !data.user?.is_admin) {
-            alert(`[checkAdminAuth] Verification FAILED. Status: ${response.status}, Authenticated: ${data.authenticated}, Is Admin: ${data.user?.is_admin}. REDIRECTING.`); // Add alert before redirect
-            console.log(`checkAdminAuth: Verification failed. Status: ${response.status}, Authenticated: ${data.authenticated}, Is Admin: ${data.user?.is_admin}`);
+        // CORRECTED: Check data.loggedIn instead of data.authenticated
+        if (response.status === 401 || !data.loggedIn || !data.user?.is_admin) {
+            // alert(`[checkAdminAuth] Verification FAILED. Status: ${response.status}, Authenticated: ${data.authenticated}, Is Admin: ${data.user?.is_admin}. REDIRECTING.`); // Remove alert
+            console.log(`checkAdminAuth: Verification failed. Status: ${response.status}, LoggedIn: ${data.loggedIn}, Is Admin: ${data.user?.is_admin}`); // Use loggedIn
             localStorage.removeItem('user');
             window.location.href = `/login.html?admin=true&reason=${response.status === 401 ? 'unauthorized' : 'not_admin'}`;
             return null; // Indicate failure
         } else {
-            // Should succeed here
-            alert('[checkAdminAuth] Verification successful. User is admin. Proceeding to load panel.'); // Add alert on success
+            // alert('[checkAdminAuth] Verification successful. User is admin. Proceeding to load panel.'); // Remove alert
             console.log("checkAdminAuth: Verification successful. User is admin.");
             hideSetupForm(); // Ensure setup form is hidden if verification succeeds
             return data.user;
         }
     } catch (error) {
-        // ADD ALERT for caught error
-        alert(`[checkAdminAuth] Auth verification FETCH FAILED with error: ${error}. REDIRECTING.`);
+        // alert(`[checkAdminAuth] Auth verification FETCH FAILED with error: ${error}. REDIRECTING.`); // Remove alert
         console.error('checkAdminAuth: Auth verification fetch error:', error);
         localStorage.removeItem('user');
         window.location.href = '/login.html?admin=true&reason=verify_fetch_error';
