@@ -26,20 +26,22 @@ let appearanceInitialized = false;
 let globalSettingsInitialized = false; // Flag for new section
 
 // Main admin module
-document.addEventListener('DOMContentLoaded', () => {
-    const loggedInUser = checkAdminAuth();
+document.addEventListener('DOMContentLoaded', async () => { // Make listener async
+    const loggedInUser = await checkAdminAuth(); // Await the result
 
     if (loggedInUser) {
         // User is authenticated and is an admin
-        displayUserInfo(loggedInUser); // Assuming this uses the user correctly or will be fixed later
-        setupEventListeners(loggedInUser); // Assuming this uses the user correctly or will be fixed later
+        console.log("Admin authenticated, proceeding with initialization.", loggedInUser);
+        displayUserInfo(loggedInUser);
+        setupEventListeners(loggedInUser);
 
         // Determine the current section and initialize it
         const hash = window.location.hash.substring(1);
-        // PASS loggedInUser to navigateToSection
         navigateToSection(hash || 'dashboard', loggedInUser);
+    } else {
+        // checkAdminAuth handles redirects, but log just in case
+        console.log("Admin authentication failed or user is not admin.");
     }
-    // No 'else' needed here, checkAdminAuth handles redirect if not admin
 });
 
 // ... existing code ...
@@ -1029,58 +1031,93 @@ function showLoginMessage(message, type = 'info') {
     }, 5000);
 }
 
-// Check if user is logged in as admin
-function checkAdminAuth() {
+// Check if user is logged in as admin - NOW ASYNC
+async function checkAdminAuth() { // Make function async
     // Get user from localStorage
-    const user = JSON.parse(localStorage.getItem('user') || 'null');
-    
-    // Show admin setup if no user is found
-    if (!user) {
-        fetch(`${API_BASE_URL}/admin/check`, {
-            method: 'GET',
-            credentials: 'include'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.needsSetup) {
-                showSetupForm();
-            } else {
-                // Redirect to login
-                window.location.href = '/login.html?admin=true';
-            }
-        })
-        .catch(() => {
-            // On error, show setup form (first-time setup)
-            showSetupForm();
-        });
-        return;
+    const userJson = localStorage.getItem('user');
+    let user = null;
+    try {
+        user = JSON.parse(userJson || 'null');
+    } catch (e) {
+        console.error("Error parsing user from localStorage:", e);
+        localStorage.removeItem('user'); // Clear invalid data
+        window.location.href = '/login.html?admin=true&reason=invalid_storage';
+        return null; // Stop execution
     }
-    
-    // Verify admin status
-    fetch(`${API_BASE_URL}/auth/verify`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-            'Authorization': `Bearer ${user.token || ''}`
+
+    // If no user in localStorage, check if setup is needed or redirect
+    if (!user) {
+        console.log("checkAdminAuth: No user in localStorage. Checking server setup status.");
+        try {
+            const response = await fetch(`${API_BASE_URL}/admin/check`, {
+                method: 'GET',
+                credentials: 'include'
+            });
+            const data = await response.json();
+
+            if (data.needsSetup) {
+                console.log("checkAdminAuth: Admin setup needed.");
+                showSetupForm();
+                // Need to prevent further execution in DOMContentLoaded
+                // Returning null signals failure to authenticate/initialize
+                return null;
+            } else {
+                console.log("checkAdminAuth: No user and no setup needed. Redirecting to login.");
+                window.location.href = '/login.html?admin=true&reason=no_user';
+                return null; // Stop execution
+            }
+        } catch (error) {
+            console.error("checkAdminAuth: Error checking admin setup status:", error);
+            // Fallback might be to allow setup or redirect, let's redirect
+            console.log("checkAdminAuth: Error during setup check. Redirecting to login.");
+            window.location.href = '/login.html?admin=true&reason=setup_check_error';
+            return null; // Stop execution
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (!data.authenticated || !data.user.is_admin) {
-            // Not authenticated or not admin, redirect to login
-            localStorage.removeItem('user');
-            window.location.href = '/login.html?admin=true';
-        } else {
-            // Update admin info
-            document.querySelector('.admin-name').textContent = data.user.name || 'Admin';
-            hideSetupForm();
-        }
-    })
-    .catch(error => {
-        console.error('Auth verification error:', error);
+    }
+
+    // User exists in localStorage, now verify token and admin status with the server
+    console.log("checkAdminAuth: User found in localStorage. Verifying token and admin status with server.");
+    if (!user.token) {
+        console.error("checkAdminAuth: User object in localStorage is missing token.");
         localStorage.removeItem('user');
-        window.location.href = '/login.html?admin=true';
-    });
+        window.location.href = '/login.html?admin=true&reason=missing_token';
+        return null; // Stop execution
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/verify`, { // Await fetch
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+                'Authorization': `Bearer ${user.token}`
+            }
+        });
+
+        const data = await response.json(); // Await parsing json
+
+        if (response.status === 401 || !data.authenticated || !data.user?.is_admin) {
+            console.log(`checkAdminAuth: Verification failed. Status: ${response.status}, Authenticated: ${data.authenticated}, Is Admin: ${data.user?.is_admin}`);
+            localStorage.removeItem('user');
+            window.location.href = `/login.html?admin=true&reason=${response.status === 401 ? 'unauthorized' : 'not_admin'}`;
+            return null; // Indicate failure
+        } else {
+            // User is authenticated AND is an admin
+            console.log("checkAdminAuth: Verification successful. User is admin.");
+            // Update UI elements that might need immediate update (if any)
+            // const adminNameElement = document.querySelector('.admin-name');
+            // if(adminNameElement) adminNameElement.textContent = data.user.name || 'Admin';
+            hideSetupForm(); // Ensure setup form is hidden if verification succeeds
+            // Return the validated user object
+            // IMPORTANT: Return the user data received from the VERIFY endpoint,
+            // as it might be more up-to-date than localStorage
+            return data.user;
+        }
+    } catch (error) {
+        console.error('checkAdminAuth: Auth verification fetch error:', error);
+        localStorage.removeItem('user');
+        window.location.href = '/login.html?admin=true&reason=verify_fetch_error';
+        return null; // Indicate failure
+    }
 }
 
 // Show admin setup form
