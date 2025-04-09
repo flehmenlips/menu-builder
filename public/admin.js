@@ -26,895 +26,79 @@ let appearanceInitialized = false;
 let globalSettingsInitialized = false; // Flag for new section
 
 // Main admin module
-document.addEventListener('DOMContentLoaded', async () => { // Make listener async
-    console.log('[DOMContentLoaded] Starting admin auth check...');
-    const loggedInUser = await checkAdminAuth(); // Await the result
-
-    if (loggedInUser) {
-        console.log("*** [DOMContentLoaded] checkAdminAuth SUCCEEDED! User:", loggedInUser);
-        
-        try {
-            displayUserInfo(loggedInUser); 
-        } catch (e) { console.error("ERROR in displayUserInfo:", e); } 
-        
-        try {
-             setupEventListeners(loggedInUser); 
-        } catch (e) { console.error("ERROR in setupEventListeners:", e); } 
-        
-        // Bypass navigateToSection for now, call initDashboard directly
-        console.log("[DOMContentLoaded] Attempting direct call to initDashboard...");
-        try {
-             initDashboard(loggedInUser);
-        } catch (e) { console.error("ERROR calling initDashboard directly:", e); }
-        console.log("[DOMContentLoaded] Direct call to initDashboard finished (or failed).");
-
-        /* --- Comment out navigateToSection call --- 
-        try {
-            const hash = window.location.hash.substring(1);
-            navigateToSection(hash || 'dashboard', loggedInUser); 
-        } catch (e) { console.error("ERROR in navigateToSection:", e); } 
-        --- End comment out --- */
-
-    } else {
-        console.log("*** [DOMContentLoaded] checkAdminAuth FAILED or user is not admin (returned null).");
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Admin page loaded');
+    
+    // Check if URL has a reset parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('reset')) {
+        clearLoginData();
+        window.history.replaceState({}, document.title, window.location.pathname);
     }
-});
+    
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    console.log('Stored user data:', user);
+    
+    const adminPanel = document.getElementById('admin-panel');
+    const loginContainer = document.getElementById('admin-login-container');
+    const setupContainer = document.getElementById('admin-setup-container');
 
-// ... existing code ...
+    // --- Set Initial View --- 
+    if (user && user.is_admin) {
+        console.log('Initial state: Admin logged in.');
+        // Show panel, hide others
+        if (adminPanel) adminPanel.classList.add('active');
+        if (loginContainer) loginContainer.classList.remove('active');
+        if (setupContainer) setupContainer.classList.remove('active');
+        
+        // Initialize dashboard & nav
+        initDashboard();
+        dashboardInitialized = true;
+        initNavigation();
 
-// Pass user object for consistency
-function displayUserInfo(user) {
-    try { // <-- ADD try
-        const userNameElement = document.getElementById('user-name-display');
-        const userEmailElement = document.getElementById('user-email-display');
-
-        if (userNameElement) {
-            userNameElement.textContent = user.name || user.email; 
-        }
-        // Add logic for userEmailElement if you have one
-    } catch(e) { console.error("ERROR inside displayUserInfo:", e); } // <-- ADD catch
-}
-
-// Pass user object for consistency, especially if needed by listeners
-function setupEventListeners(user) {
-    try { // <-- ADD try
-        // Sidebar navigation links
-        const navLinks = document.querySelectorAll('.sidebar-nav a');
-        navLinks.forEach(link => {
-            link.addEventListener('click', function(e) {
-                const targetSection = this.getAttribute('href').substring(1);
-                if (targetSection !== 'logout') { 
-                    e.preventDefault();
-                    window.location.hash = targetSection;
-                    navigateToSection(targetSection, user);
-                } else {
-                    // The actual logout button has its own listener now
-                }
+        // Check user role and show/hide super admin elements
+        if (user.role === 'SUPER_ADMIN') {
+            document.querySelectorAll('.super-admin-only').forEach(el => {
+                el.style.display = ''; // Remove inline style to show elements
             });
-        });
-
-        // Logout button
-        const logoutBtn = document.getElementById('logout-btn');
-        if (logoutBtn) {
-            // Check if listener already exists? (might not be necessary)
-            logoutBtn.addEventListener('click', logout); // Use the globally defined logout function
         }
+    } else {
+        console.log('Initial state: Not logged in.');
+        // Show login, hide others
+        if (adminPanel) adminPanel.classList.remove('active');
+        if (loginContainer) loginContainer.classList.add('active'); 
+        if (setupContainer) setupContainer.classList.remove('active');
+        
+        // Now check if setup is needed instead of login
+        checkAdminExists(); 
+    }
+    
+    // --- Initialize Handlers --- 
+    initLoginForm(); // Always needed
 
-        // Add other event listeners as needed, passing `user` if required
-    } catch(e) { console.error("ERROR inside setupEventListeners:", e); } // <-- ADD catch
-}
-
-// Moved logout function definition earlier to fix ReferenceError in setupEventListeners
-function logout() {
-    // Show confirmation dialog
-    if (confirm('Are you sure you want to log out?')) {
-        // Send logout request to the server
-        fetch(`${API_BASE_URL}/auth/logout`, {
+    // Initialize logout button (only if panel exists)
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async function() {
+            try {
+                await fetch(`${API_BASE_URL}/auth/logout`, {
                     method: 'POST',
                     credentials: 'include'
-        })
-        .then(response => response.json())
-        .then(data => {
-            // Clear local storage
-            localStorage.removeItem('user');
-            
-            // Redirect to login page
-            window.location.href = '/login.html';
-        })
-        .catch(error => {
-            console.error('Logout error:', error);
-            // Still redirect to login page even if there's an error
-            localStorage.removeItem('user');
-            window.location.href = '/login.html';
-        });
-    }
-}
-
-// Function to navigate between sections and initialize them
-// ACCEPTS USER OBJECT
-function navigateToSection(section, user) { 
-    console.log(`[navigateToSection] Navigating to: "${section}"`); // Keep simple nav log
-    // Hide all sections
-    const sections = document.querySelectorAll('.content-section');
-    sections.forEach(s => s.style.display = 'none');
-
-    // Show the target section
-    const activeSection = document.getElementById(section); 
-    if (activeSection) {
-        activeSection.style.display = 'block'; 
-
-        // Update active link in sidebar
-        const navLinks = document.querySelectorAll('.sidebar-nav a');
-        navLinks.forEach(link => {
-            link.classList.remove('active');
-            if (link.getAttribute('href') === `#${section}`) { 
-                link.classList.add('active');
-            }
-        });
-
-        // Initialize the section-specific JS, PASSING USER OBJECT
-        // Restore passing user to all init functions
-
-
-// ... existing code ...
-
-
-// Initialize dashboard - ACCEPTS USER OBJECT
-function initDashboard(user) { // Added user parameter
-    // console.log("[initDashboard] Function called."); // Remove log
-    fetchDashboardStats(user);
-}
-
-// Fetch dashboard stats - ACCEPTS USER OBJECT
-function fetchDashboardStats(user) { 
-    console.log("[fetchDashboardStats] ENTERED FUNCTION."); 
-    // Remove outer try...catch, handle errors within promises
-    // try { 
-        if (!user || !user.token) { 
-            console.error('fetchDashboardStats: Auth token not provided.'); 
-            return; 
-        }
-        console.log("[fetchDashboardStats] Starting fetches...");
-
-        // Fetch total users
-        fetch(`${API_BASE_URL}/admin/stats/users`, {
-            headers: {
-                'Authorization': `Bearer ${user.token}`,
-                'Content-Type': 'application/json'
-            },
-            credentials: 'include'
-        })
-        .then(response => {
-            console.log("[fetchDashboardStats] Users API status:", response.status);
-            if (!response.ok) throw new Error(`Users API HTTP Error: ${response.status}`);
-            return response.json();
-        })
-        .then(data => {
-            console.log("[fetchDashboardStats] Users API data received.");
-            if (data.error) throw new Error(`Users API Data Error: ${data.error}`);
-            const totalUsers = document.getElementById('total-users');
-            const proUsers = document.getElementById('pro-users');
-            const newUsers = document.getElementById('new-users');
-            if (totalUsers) totalUsers.textContent = data.count ?? 'N/A'; // Use nullish coalescing
-            if (proUsers) proUsers.textContent = data.proCount ?? 'N/A';
-            if (newUsers) newUsers.textContent = data.newThisMonth ?? 'N/A';
-            console.log("[fetchDashboardStats] User stats elements updated.");
-        })
-        .catch(error => {
-            // This catch handles errors from the fetch OR the .then() blocks above it
-            console.error('[fetchDashboardStats] Error in Users fetch/processing chain:', error);
-            // Set elements to Error
-            const totalUsers = document.getElementById('total-users');
-            const proUsers = document.getElementById('pro-users');
-            const newUsers = document.getElementById('new-users');
-            if (totalUsers) totalUsers.textContent = 'Error';
-            if (proUsers) proUsers.textContent = 'Error';
-            if (newUsers) newUsers.textContent = 'Error';
-        }); // No further .catch needed here, as it's caught above
-
-        // Fetch total menus 
-        fetch(`${API_BASE_URL}/admin/stats/menus`, {
-           headers: {
-                'Authorization': `Bearer ${user.token}`,
-                'Content-Type': 'application/json'
-            },
-            credentials: 'include' 
-        })
-        .then(response => {
-            console.log("[fetchDashboardStats] Menus API status:", response.status);
-            if (!response.ok) throw new Error(`Menus API HTTP Error: ${response.status}`);
-            return response.json();
-        })
-        .then(data => {
-            console.log("[fetchDashboardStats] Menus API data received.");
-            if (data.error) throw new Error(`Menus API Data Error: ${data.error}`);
-            const totalMenus = document.getElementById('total-menus');
-            if (totalMenus) totalMenus.textContent = data.count ?? 'N/A'; // Use nullish coalescing
-            console.log("[fetchDashboardStats] Menu stats element updated.");
-        })
-        .catch(error => {
-             // This catch handles errors from the fetch OR the .then() block above it
-            console.error('[fetchDashboardStats] Error in Menus fetch/processing chain:', error);
-            // Set element to Error
-            const totalMenus = document.getElementById('total-menus');
-            if (totalMenus) totalMenus.textContent = 'Error';
-        }); // No further .catch needed here
-        
-        console.log("[fetchDashboardStats] Finished FUNCTION (fetch calls initiated).");
-    // } catch (e) { // Remove outer try-catch 
-    //     console.error("[fetchDashboardStats] UNEXPECTED SYNC ERROR:", e);
-    // }
-}
-
-
-// Initialize users section - ACCEPTS USER OBJECT
-function initUsers(user) { // Changed signature
-    // Initialize user search if elements exist
-    const searchInput = document.getElementById('users-search');
-    const searchBtn = document.getElementById('users-search-btn');
-
-    if (searchInput && searchBtn) {
-        searchBtn.addEventListener('click', function() {
-            fetchUsers(user, 1, 20, searchInput.value); // Pass user
-        });
-
-        searchInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                fetchUsers(user, 1, 20, this.value); // Pass user
-            }
-        });
-    }
-
-    // Initialize add user button if it exists
-    const addUserBtn = document.getElementById('add-user-btn');
-    if (addUserBtn) {
-        addUserBtn.addEventListener('click', function() {
-            showUserModal(user); // Pass user for context if needed, or just null for Add
-        });
-    }
-
-    // Initialize user modal
-    initUserModal(user); // Pass user
-
-    // Fetch users on load
-    fetchUsers(user); // Pass user
-}
-
-// Fetch users - ACCEPTS USER OBJECT
-function fetchUsers(user, page = 1, limit = 20, search = '') { // Changed signature
-    // const user = JSON.parse(localStorage.getItem('user') || 'null'); // REMOVED - Use passed user
-    if (!user || !user.token) { // Check passed user
-        console.error('fetchUsers: Auth token not provided.'); // Updated error
-        const tbody = document.querySelector('#users-table tbody');
-         if (tbody) {
-             tbody.innerHTML = '<tr><td colspan="7" class="loading-data">Authentication Error</td></tr>';
-         }
-        return;
-    }
-
-    const tbody = document.querySelector('#users-table tbody');
-    if (tbody) {
-        tbody.innerHTML = '<tr><td colspan="7" class="loading-data">Loading users...</td></tr>';
-    }
-
-    fetch(`${API_BASE_URL}/admin/users?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`, {
-        headers: {
-            'Authorization': `Bearer ${user.token}`, // Use passed user token
-            'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-    })
-    .then(response => {
-         if (!response.ok) {
-             // Handle specific auth error (e.g., 401 Unauthorized) maybe redirect?
-             if (response.status === 401) {
-                  console.error('fetchUsers: Unauthorized access. Token might be invalid.');
-                  // Optionally redirect to login: window.location.href = '/login.html';
-             }
-             throw new Error(`HTTP error! status: ${response.status}`);
-         }
-        return response.json();
-    })
-    .then(data => {
-        if (data.error) throw new Error(data.error);
-
-        if (tbody) {
-            renderUsers(data.users, user); // Pass user to renderUsers if needed for actions
-            renderPagination(data.page, data.totalPages, data.total, search, user); // Pass user to pagination if needed
-        }
-    })
-    .catch(error => {
-        console.error('Error fetching users:', error);
-        if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="7" class="loading-data">Error fetching users: ${error.message}</td></tr>`;
-        }
-    });
-}
-
-// Render users table - ACCEPTS USER OBJECT (for actions)
-function renderUsers(usersData, user) { // Changed signature (user added)
-    const tbody = document.querySelector('#users-table tbody');
-
-    if (!usersData || usersData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="loading-data">No users found</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = ''; // Clear existing rows
-
-    usersData.forEach(userData => { // Use different name to avoid conflict with outer scope user
-        const tr = document.createElement('tr');
-
-        // Format dates
-        const createdDate = new Date(userData.created_at).toLocaleDateString();
-        const lastLogin = userData.last_login ? new Date(userData.last_login).toLocaleDateString() : 'Never';
-
-        tr.innerHTML = `
-            <td>${userData.id}</td>
-            <td>${userData.name || '-'}</td>
-            <td>${userData.email}</td>
-            <td>${createdDate}</td>
-            <td>${lastLogin}</td>
-            <td>
-                <span class="badge ${userData.subscription_status === 'free' ? 'badge-secondary' : 'badge-primary'}">
-                    ${userData.subscription_status || 'Free'}
-                </span>
-            </td>
-            <td>
-                <div class="table-actions">
-                    <button class="edit-user-btn" data-id="${userData.id}" title="Edit">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="delete-user-btn" data-id="${userData.id}" title="Delete">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </td>
-        `;
-
-        tbody.appendChild(tr);
-    });
-
-    // Add event listeners to action buttons, passing the main `user` token for auth checks
-    document.querySelectorAll('.edit-user-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const userIdToEdit = this.getAttribute('data-id');
-            fetchUserDetails(user, userIdToEdit); // Pass authenticated user
-        });
-    });
-
-    document.querySelectorAll('.delete-user-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const userIdToDelete = this.getAttribute('data-id');
-            if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-                deleteUser(user, userIdToDelete); // Pass authenticated user
-            }
-        });
-    });
-}
-
-
-// Render pagination - ACCEPTS USER OBJECT
-function renderPagination(currentPage, totalPages, totalItems, search, user) { // Changed signature
-    const pagination = document.getElementById('users-pagination');
-    if (!pagination) return;
-
-    const prevBtn = pagination.querySelector('.pagination-prev');
-    const nextBtn = pagination.querySelector('.pagination-next');
-    const numbersContainer = pagination.querySelector('.pagination-numbers');
-
-    if (!prevBtn || !nextBtn || !numbersContainer) {
-        console.error("Pagination elements not found in the DOM.");
-        return;
-    }
-
-    numbersContainer.innerHTML = ''; // Clear previous numbers
-
-    // Update prev/next buttons state
-    prevBtn.classList.toggle('disabled', currentPage <= 1);
-    nextBtn.classList.toggle('disabled', currentPage >= totalPages);
-
-    // Clone and replace to remove old listeners
-    const prevClone = prevBtn.cloneNode(true);
-    const nextClone = nextBtn.cloneNode(true);
-    prevBtn.parentNode.replaceChild(prevClone, prevBtn);
-    nextBtn.parentNode.replaceChild(nextClone, nextBtn);
-
-    // Add event listeners with the user object
-    if (currentPage > 1) {
-        prevClone.addEventListener('click', () => fetchUsers(user, currentPage - 1, 20, search)); // Pass user
-    }
-    if (currentPage < totalPages) {
-        nextClone.addEventListener('click', () => fetchUsers(user, currentPage + 1, 20, search)); // Pass user
-    }
-
-    // Generate page numbers
-    // ... (logic for generating page numbers, ensuring clicks call fetchUsers with user) ...
-     for (let i = 1; i <= totalPages; i++) {
-         if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
-             const pageNum = document.createElement('div');
-             pageNum.className = `page-number ${i === currentPage ? 'active' : ''}`;
-             pageNum.textContent = i;
-             if (i !== currentPage) {
-                 pageNum.addEventListener('click', () => fetchUsers(user, i, 20, search)); // Pass user
-             }
-             numbersContainer.appendChild(pageNum);
-         } else if ((i === 2 && currentPage > 3) || (i === totalPages - 1 && currentPage < totalPages - 2)) {
-             const ellipsis = document.createElement('div');
-             ellipsis.className = 'pagination-ellipsis';
-             ellipsis.textContent = '...';
-             numbersContainer.appendChild(ellipsis);
-         }
-     }
-}
-
-// Initialize user modal - ACCEPTS USER OBJECT
-function initUserModal(user) { // Changed signature
-    const modal = document.getElementById('user-modal');
-    if (!modal) return;
-
-    const closeBtn = modal.querySelector('.modal-close');
-    const cancelBtn = document.getElementById('user-cancel-btn');
-    const saveBtn = document.getElementById('user-save-btn');
-    const deleteBtn = document.getElementById('user-delete-btn');
-
-    if (closeBtn) closeBtn.addEventListener('click', () => modal.classList.remove('active'));
-    if (cancelBtn) cancelBtn.addEventListener('click', () => modal.classList.remove('active'));
-
-    if (saveBtn) {
-        saveBtn.addEventListener('click', () => saveUser(user)); // Pass user
-    }
-
-    if (deleteBtn) {
-        deleteBtn.addEventListener('click', () => {
-            const userIdToDelete = document.getElementById('user-id')?.value;
-            if (userIdToDelete && confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-                deleteUser(user, userIdToDelete); // Pass user
-            }
-        });
-    }
-}
-
-// Show user modal for adding/editing - ACCEPTS USER OBJECT
-function showUserModal(user, userIdToEdit = null) { // Changed signature
-    const modal = document.getElementById('user-modal');
-    const title = document.getElementById('user-modal-title');
-    const idInput = document.getElementById('user-id');
-    const nameInput = document.getElementById('user-name');
-    const emailInput = document.getElementById('user-email');
-    const planSelect = document.getElementById('user-plan');
-    const expiryInput = document.getElementById('user-expiry');
-    const adminCheckbox = document.getElementById('user-admin');
-    const deleteBtn = document.getElementById('user-delete-btn');
-    const form = document.getElementById('user-form');
-
-     if (!modal || !title || !idInput || !deleteBtn || !form) {
-          console.error("User modal elements missing.");
-          return;
-     }
-
-    // Reset form
-    form.reset();
-
-    if (userIdToEdit) {
-        // Editing existing user
-        title.textContent = 'Edit User';
-        idInput.value = userIdToEdit;
-        deleteBtn.style.display = 'block'; // Show delete button when editing
-        fetchUserDetails(user, userIdToEdit); // Pass user
-    } else {
-        // Adding new user
-        title.textContent = 'Add User';
-        idInput.value = ''; // Ensure ID is clear
-        deleteBtn.style.display = 'none'; // Hide delete button when adding
-
-        // Set default expiry date (optional, could be handled by backend)
-        // const expiryDate = new Date();
-        // expiryDate.setDate(expiryDate.getDate() + 30);
-        // if(expiryInput) expiryInput.value = expiryDate.toISOString().split('T')[0];
-
-        modal.classList.add('active');
-    }
-}
-
-
-// Fetch user details - ACCEPTS USER OBJECT
-function fetchUserDetails(user, userIdToFetch) { // Changed signature
-    // const user = JSON.parse(localStorage.getItem('user') || 'null'); // REMOVED
-    if (!user || !user.token) { // Check passed user
-        console.error('fetchUserDetails: Auth token not provided.');
-        alert('Authentication error. Cannot fetch user details.');
-        return;
-    }
-
-    fetch(`${API_BASE_URL}/admin/users/${userIdToFetch}`, { // Use userIdToFetch
-        headers: {
-            'Authorization': `Bearer ${user.token}` // Use passed token
-        },
-        credentials: 'include'
-    })
-    .then(response => {
-         if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-         return response.json();
-     })
-    .then(data => {
-        if (data.error) throw new Error(data.error);
-
-        // Populate form - Ensure elements exist before setting value
-        const nameInput = document.getElementById('user-name');
-        const emailInput = document.getElementById('user-email');
-        const planSelect = document.getElementById('user-plan');
-        const expiryInput = document.getElementById('user-expiry');
-        const adminCheckbox = document.getElementById('user-admin');
-        const modal = document.getElementById('user-modal'); // Get modal element
-
-        if (nameInput) nameInput.value = data.user.name || '';
-        if (emailInput) emailInput.value = data.user.email || '';
-        if (planSelect) planSelect.value = data.user.subscription_status || 'free';
-
-        if (expiryInput && data.user.subscription_end_date) {
-            try {
-                 // Safely format date
-                 expiryInput.value = new Date(data.user.subscription_end_date).toISOString().split('T')[0];
-            } catch (e) {
-                 console.error("Error parsing subscription end date:", e);
-                 expiryInput.value = ''; // Clear on error
-            }
-        } else if (expiryInput) {
-             expiryInput.value = ''; // Clear if no date provided
-        }
-
-        if (adminCheckbox) adminCheckbox.checked = data.user.is_admin === 1;
-
-        // Show modal only if all elements were found and populated
-        if (modal && nameInput && emailInput && planSelect && expiryInput && adminCheckbox) {
-             modal.classList.add('active');
-        } else {
-             console.error("Could not populate all user modal fields.");
-             alert("Error displaying user details. Some form elements may be missing.");
-        }
-    })
-    .catch(error => {
-        console.error('Error fetching user details:', error);
-        alert('Error fetching user details: ' + error.message);
-        // Optionally close modal or show error within modal
-         const modal = document.getElementById('user-modal');
-         if(modal) modal.classList.remove('active');
-    });
-}
-
-
-// Save user - ACCEPTS USER OBJECT
-function saveUser(user) { // Changed signature
-    // const user = JSON.parse(localStorage.getItem('user') || 'null'); // REMOVED
-     if (!user || !user.token) { // Check passed user
-         console.error('saveUser: Auth token not provided.');
-         alert('Authentication error. Cannot save user.');
-         return;
-     }
-
-    // Get form values
-    const userId = document.getElementById('user-id')?.value || null; // Use null if empty
-    const name = document.getElementById('user-name')?.value;
-    const email = document.getElementById('user-email')?.value;
-    const password = document.getElementById('user-password')?.value; // Optional: only send if changed
-    const plan = document.getElementById('user-plan')?.value;
-    const expiry = document.getElementById('user-expiry')?.value;
-    const isAdmin = document.getElementById('user-admin')?.checked;
-
-    // Basic validation (optional, more robust validation recommended)
-    if (!name || !email || !plan) {
-         alert('Please fill in Name, Email, and Plan.');
-         return;
-    }
-
-
-    const userData = {
-        name,
-        email,
-        subscription_status: plan,
-        subscription_end_date: expiry || null, // Send null if empty
-        is_admin: isAdmin ? 1 : 0
-    };
-
-    // Only include password if it's being set/changed (and not empty)
-    if (password) {
-        userData.password = password;
-    }
-
-    const method = userId ? 'PUT' : 'POST';
-    const url = userId ? `${API_BASE_URL}/admin/users/${userId}` : `${API_BASE_URL}/admin/users`;
-
-    fetch(url, {
-        method: method,
-        headers: {
-            'Authorization': `Bearer ${user.token}`, // Use passed token
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(userData),
-        credentials: 'include'
-    })
-     .then(response => {
-         if (!response.ok) {
-             return response.json().then(err => { throw new Error(err.error || `HTTP error ${response.status}`) });
-         }
-         return response.json();
-      })
-    .then(data => {
-        if (data.error) throw new Error(data.error);
-
-        alert(`User ${userId ? 'updated' : 'added'} successfully!`);
-        document.getElementById('user-modal').classList.remove('active');
-        fetchUsers(user); // Refresh the user list using the authenticated user
-    })
-    .catch(error => {
-        console.error('Error saving user:', error);
-        alert('Error saving user: ' + error.message);
-    });
-}
-
-
-// Delete user - ACCEPTS USER OBJECT
-function deleteUser(user, userIdToDelete) { // Changed signature
-    // const user = JSON.parse(localStorage.getItem('user') || 'null'); // REMOVED
-    if (!user || !user.token) { // Check passed user
-        console.error('deleteUser: Auth token not provided.');
-        alert('Authentication error. Cannot delete user.');
-        return;
-    }
-
-    if (!userIdToDelete) {
-         console.error('deleteUser: No user ID provided.');
-         alert('Cannot delete user: User ID is missing.');
-         return;
-    }
-
-
-    fetch(`${API_BASE_URL}/admin/users/${userIdToDelete}`, { // Use userIdToDelete
-        method: 'DELETE',
-        headers: {
-            'Authorization': `Bearer ${user.token}` // Use passed token
-        },
-        credentials: 'include'
-    })
-     .then(response => {
-         // Check for specific status codes if needed (e.g., 204 No Content)
-         if (!response.ok) {
-              // Try to parse error json, otherwise use status text
-             return response.json().catch(() => null).then(err => {
-                 throw new Error(err?.error || response.statusText || `HTTP error ${response.status}`);
-             });
-         }
-         // If DELETE is successful, response might be empty or have minimal content
-         return response.text(); // Or response.json() if backend sends confirmation
-     })
-    .then(() => { // No data expected on successful DELETE usually
-        alert('User deleted successfully!');
-        // Optionally close modal if open
-        const modal = document.getElementById('user-modal');
-        if (modal && modal.classList.contains('active')) {
-             const modalUserId = document.getElementById('user-id')?.value;
-             if (modalUserId === userIdToDelete) {
-                  modal.classList.remove('active');
-             }
-        }
-        fetchUsers(user); // Refresh the user list using the authenticated user
-    })
-    .catch(error => {
-        console.error('Error deleting user:', error);
-        alert('Error deleting user: ' + error.message);
-    });
-}
-
-// ... (Keep initSubscriptionPlans, initContentManagement, initMenuDesigns signatures unchanged for now, assume they don't need user or fix later) ...
-function initSubscriptionPlans(user) { /* ... requires user ... */ fetchSubscriptionPlans(user); }
-function initContentManagement(user) { /* ... requires user ... */ /* fetch content */ }
-function initMenuDesigns(user) { /* ... requires user ... */ /* fetch designs */ }
-
-
-// Initialize settings section - ACCEPTS USER OBJECT
-function initSettings(user) { // Added user parameter
-    // Initialize global settings subsection, PASSING USER OBJECT
-    initGlobalSettings(user);
-    // Initialize other settings subsections if they exist and need user object
-    // e.g., initProfileSettings(user);
-}
-
-// Initialize global settings - ACCEPTS USER OBJECT
-function initGlobalSettings(user) { // Added user parameter
-    console.log('Initializing Global Settings...');
-    const form = document.getElementById('global-settings-form');
-    const messageDiv = document.getElementById('global-settings-message');
-    const logoPreview = document.getElementById('app-logo-preview');
-    const uploadBtn = document.getElementById('upload-app-logo-btn');
-    const logoInput = document.getElementById('app-logo-input');
-    // Assuming other inputs/buttons might exist for other global settings
-    // const appNameInput = document.getElementById('app-name-input');
-    // const saveAppNameBtn = document.getElementById('save-app-name-btn');
-
-    if (!form || !messageDiv || !logoPreview || !uploadBtn || !logoInput) {
-        console.error('initGlobalSettings: One or more required elements are missing.');
-        return;
-    }
-
-    // Helper function to display messages within the settings section
-    const showMessage = (element, message, type = 'error') => {
-        element.textContent = message;
-        element.className = `message ${type}`; // Use classes for styling
-        element.style.display = 'block';
-    };
-
-    // Check for token before proceeding with fetch
-    if (!user || !user.token) {
-        console.error('initGlobalSettings: Auth token not provided via user object.');
-        showMessage(messageDiv, 'Authentication error. Cannot load settings.', 'error');
-        logoPreview.style.display = 'none';
-        // Disable form elements if needed
-        uploadBtn.disabled = true;
-        logoInput.disabled = true;
-        return;
-    }
-
-    // Fetch current settings on load using the passed user token
-    fetch(`${API_BASE_URL}/admin/settings`, { // Use ADMIN endpoint for potentially sensitive settings
-        headers: {
-            'Authorization': `Bearer ${user.token}` // Use passed user token
-            // No Content-Type needed for GET
-        },
-        credentials: 'include' // Keep if necessary
-    })
-    .then(response => {
-        if (response.status === 401) throw new Error('Unauthorized (401)');
-        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-        return response.json();
-    })
-    .then(data => {
-         if (data.settings.app_logo) {
-             // Ensure correct URL (handle relative/absolute)
-             const logoUrl = data.settings.app_logo;
-             logoPreview.src = logoUrl.startsWith('/') ? `${window.location.origin}${logoUrl}` : logoUrl;
-             logoPreview.style.display = 'block';
-         } else {
-             logoPreview.style.display = 'none';
-         }
-         // Populate other settings fields if they exist
-         // if (appNameInput && data.settings.app_name) {
-         //     appNameInput.value = data.settings.app_name;
-         // }
-    })
-    .catch(error => {
-        console.error('Error fetching current global settings:', error);
-        showMessage(messageDiv, `Error loading current settings: ${error.message}`, 'error');
-        logoPreview.style.display = 'none'; // Hide preview on error
-    });
-
-
-    // Handle logo upload using the passed user token
-    uploadBtn.addEventListener('click', async () => {
-        // Check token *again* right before upload attempt
-        if (!user || !user.token) {
-            console.error('initGlobalSettings (Upload): Auth token missing just before upload.');
-            showMessage(messageDiv, 'Authentication error. Please log in again.', 'error');
-            return;
-        }
-
-        const file = logoInput.files[0];
-        if (!file) {
-            showMessage(messageDiv, 'Please select a logo file first.', 'error');
-            return;
-        }
-
-        // Client-side validation (size, type)
-        const maxSize = 1 * 1024 * 1024; // 1 MB
-        if (file.size > maxSize) {
-            showMessage(messageDiv, 'File size exceeds 1MB limit.', 'error');
-            return;
-        }
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml'];
-        if (!allowedTypes.includes(file.type)) {
-            showMessage(messageDiv, 'Invalid file type. Please use JPG, PNG, GIF, or SVG.', 'error');
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('app_logo', file); // Field name matches backend (multer)
-
-        // No need to get user from localStorage here - use the passed 'user' object
-        // const loggedInUser = JSON.parse(localStorage.getItem('user') || 'null'); // REMOVED
-        // if (!loggedInUser || !loggedInUser.token) { // REMOVED
-
-        // Debug log
-        console.log("initGlobalSettings (Upload): Using token from passed user object.");
-
-        try {
-            showMessage(messageDiv, 'Uploading logo...', 'info');
-            uploadBtn.disabled = true;
-
-            const response = await fetch(`${API_BASE_URL}/admin/settings/app-logo`, {
-                method: 'POST',
-                headers: {
-                    // 'Content-Type' is set automatically by browser for FormData
-                    'Authorization': `Bearer ${user.token}` // Use passed user token
-                },
-                body: formData,
-                credentials: 'include' // Keep if necessary
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                // Use error message from backend if available, else use status
-                const errorMsg = data?.error || `Upload failed with status: ${response.status}`;
-                throw new Error(errorMsg);
-            }
-
-            // Assuming success returns the new logo URL
-            showMessage(messageDiv, 'Logo uploaded successfully!', 'success');
-            if (data.logoUrl) {
-                const newLogoUrl = data.logoUrl;
-                logoPreview.src = newLogoUrl.startsWith('/') ? `${window.location.origin}${newLogoUrl}` : newLogoUrl;
-                logoPreview.style.display = 'block';
-            }
-            logoInput.value = ''; // Clear the file input
-
+                });
             } catch (error) {
-            console.error('Error uploading logo:', error);
-            showMessage(messageDiv, `Error uploading logo: ${error.message}`, 'error');
-        } finally {
-            uploadBtn.disabled = false; // Re-enable button
-        }
-    });
-
-
-     // Handle saving other settings like App Name (Example)
-     if (saveAppNameBtn && appNameInput) {
-         saveAppNameBtn.addEventListener('click', async () => {
-              const newAppName = appNameInput.value.trim();
-              if (!newAppName) {
-                   showMessage(messageDiv, 'App Name cannot be empty.', 'error');
-                   return;
-              }
-
-              if (!user || !user.token) {
-                   console.error('initGlobalSettings: No user token found for saving app name.');
-                   showMessage(messageDiv, 'Authentication error. Please log in again.', 'error');
-                   return;
-              }
-
-              try {
-                   showMessage(messageDiv, 'Saving App Name...', 'info');
-                   saveAppNameBtn.disabled = true;
-
-                   const response = await fetch(`${API_BASE_URL}/admin/settings`, {
-                        method: 'PUT',
-                        headers: {
-                             'Content-Type': 'application/json',
-                             'Authorization': `Bearer ${user.token}`
-                        },
-                        body: JSON.stringify({ app_name: newAppName }),
-                        credentials: 'include'
-                   });
-
-                   const data = await response.json();
-
-                   if (!response.ok) {
-                        throw new Error(data.error || `Save failed with status: ${response.status}`);
-                   }
-
-                   showMessage(messageDiv, 'App Name updated successfully!', 'success');
-
-              } catch (error) {
-                   console.error('Error saving App Name:', error);
-                   showMessage(messageDiv, `Error saving App Name: ${error.message}`, 'error');
-              } finally {
-                   saveAppNameBtn.disabled = false;
-              }
-         });
-     }
-
-}
-
-// ... rest of admin.js ...
+                console.error('Error calling server logout:', error);
+            }
+            clearLoginData();
+            window.location.reload();
+        });
+    }
+    
+    // Initialize setup form handler (if setup exists)
+    const setupForm = document.getElementById('admin-setup-form');
+    if (setupForm) {
+        initSetupForm(); 
+    }
+});
 
 // Initialize login form
 function initLoginForm() {
@@ -951,10 +135,10 @@ function initLoginForm() {
             if (adminPanel) adminPanel.classList.add('active');
             if (loginContainer) loginContainer.classList.remove('active');
             
-            // Initialize ONLY the dashboard and navigation - REMOVE initNavigation call
-            // initDashboard(); // This is handled by navigateToSection now
-            // dashboardInitialized = true;
-            // initNavigation(); // <-- REMOVE THIS CALL
+            // Initialize ONLY the dashboard and navigation
+            initDashboard();
+            dashboardInitialized = true;
+            initNavigation(); // Re-initialize nav to handle potential hash
             
             // Check user role and show/hide super admin elements
             const loggedInUser = JSON.parse(localStorage.getItem('user'));
@@ -1027,46 +211,58 @@ function showLoginMessage(message, type = 'info') {
     }, 5000);
 }
 
-// Check if user is logged in as admin - NOW ASYNC
-async function checkAdminAuth() { 
-    // ... (Remove internal alerts/logs from here too) ...
-    const userJson = localStorage.getItem('user');
-    // console.log('[checkAdminAuth] Raw data...'); // Remove log
-    let user = null;
-    try {
-        user = JSON.parse(userJson || 'null');
-        // console.log('[checkAdminAuth] Parsed user...'); // Remove log
-    } catch (e) {
-        // ... (keep error handling) ...
-    }
+// Check if user is logged in as admin
+function checkAdminAuth() {
+    // Get user from localStorage
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    
+    // Show admin setup if no user is found
     if (!user) {
-       // ... (keep no-user logic, remove alerts) ...
+        fetch(`${API_BASE_URL}/admin/check`, {
+            method: 'GET',
+            credentials: 'include'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.needsSetup) {
+                showSetupForm();
+            } else {
+                // Redirect to login
+                window.location.href = '/login.html?admin=true';
+            }
+        })
+        .catch(() => {
+            // On error, show setup form (first-time setup)
+            showSetupForm();
+        });
+        return;
     }
-    // console.log('[checkAdminAuth] Checking token...'); // Remove log
-    if (!user.token) {
-       // ... (keep no-token logic, remove alerts) ...
-    }
-    // console.log('[checkAdminAuth] Token found...'); // Remove log
-    try {
-        const response = await fetch(`${API_BASE_URL}/auth/verify`, { /* ... */ });
-        // Remove status/data alerts
-        const data = await response.json(); 
-        const isAdmin = data.user?.is_admin === true || data.user?.is_admin === 1;
-        if (response.status === 401 || !data.loggedIn || !isAdmin) {
-            // Remove failure alert
-            console.log(`checkAdminAuth: Verification failed...`); 
-            // ... redirect ...
-        } else {
-            // Remove success alert
-            console.log("checkAdminAuth: Verification successful...");
-            hideSetupForm(); 
-            return data.user;
+    
+    // Verify admin status
+    fetch(`${API_BASE_URL}/auth/verify`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+            'Authorization': `Bearer ${user.token || ''}`
         }
-    } catch (error) {
-        // Remove failure alert
-        console.error('checkAdminAuth: Auth verification fetch FAILED...', error);
-        // ... redirect ...
-    }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.authenticated || !data.user.is_admin) {
+            // Not authenticated or not admin, redirect to login
+            localStorage.removeItem('user');
+            window.location.href = '/login.html?admin=true';
+        } else {
+            // Update admin info
+            document.querySelector('.admin-name').textContent = data.user.name || 'Admin';
+            hideSetupForm();
+        }
+    })
+    .catch(error => {
+        console.error('Auth verification error:', error);
+        localStorage.removeItem('user');
+        window.location.href = '/login.html?admin=true';
+    });
 }
 
 // Show admin setup form
@@ -1077,14 +273,8 @@ function showSetupForm() {
 
 // Hide admin setup form
 function hideSetupForm() {
-    const setupElement = document.getElementById('admin-setup');
-    if (setupElement) {
-        setupElement.style.display = 'none';
-    }
-    const layoutElement = document.querySelector('.admin-layout');
-    if (layoutElement) {
-        layoutElement.style.display = 'flex'; // Or 'block' depending on desired layout
-    }
+    document.getElementById('admin-setup').style.display = 'none';
+    document.querySelector('.admin-layout').style.display = 'flex';
 }
 
 // Initialize setup form
@@ -1168,7 +358,125 @@ function showSetupMessage(message, type = 'info') {
     }, 5000);
 }
 
+// Initialize navigation
+function initNavigation() {
+    const navLinks = document.querySelectorAll('.nav-link');
+    const loggedInUser = JSON.parse(localStorage.getItem('user')); // Get user info
+    
+    navLinks.forEach(link => {
+        // --- START: Show/Hide Super Admin Link --- 
+        if (link.classList.contains('super-admin-only')) {
+            if (loggedInUser && loggedInUser.role === 'SUPER_ADMIN') {
+                 link.parentElement.style.display = ''; // Show the list item
+            } else {
+                 link.parentElement.style.display = 'none'; // Hide the list item
+            }
+        }
+        // --- END: Show/Hide Super Admin Link --- 
 
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Remove active class from all links
+            navLinks.forEach(l => l.classList.remove('active'));
+            
+            // Add active class to clicked link
+            this.classList.add('active');
+            
+            // Get section ID
+            const sectionId = this.getAttribute('data-section');
+            
+            // Hide all sections
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // Show selected section
+            const targetSection = document.getElementById(`${sectionId}-section`);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
+            
+            // Initialize the section ONLY if it hasn't been initialized yet
+            switch (sectionId) {
+                case 'dashboard':
+                    if (!dashboardInitialized) {
+                        initDashboard();
+                        dashboardInitialized = true;
+                    }
+                    break;
+                case 'users':
+                    if (!usersInitialized) {
+                        initUsers();
+                        usersInitialized = true;
+                    }
+                    break;
+                case 'plans':
+                    if (!plansInitialized) {
+                        initPlans();
+                        plansInitialized = true;
+                    }
+                    break;
+                case 'content':
+                    if (!contentInitialized) {
+                        initContent();
+                        contentInitialized = true;
+                    }
+                    break;
+                case 'settings':
+                    if (!settingsInitialized) {
+                        initSettings();
+                        settingsInitialized = true;
+                    }
+                    break;
+                case 'appearance':
+                    if (!appearanceInitialized) {
+                        initAppearance();
+                        appearanceInitialized = true;
+                    }
+                    break;
+                case 'global-settings': // New case
+                    if (!globalSettingsInitialized && loggedInUser?.role === 'SUPER_ADMIN') {
+                        initGlobalSettings();
+                        globalSettingsInitialized = true;
+                    }
+                    break;
+            }
+            
+            // Update window hash
+            window.location.hash = sectionId;
+        });
+    });
+    
+    // Handle initial navigation based on hash
+    const hash = window.location.hash.substring(1);
+    const initialSection = hash || 'dashboard'; // Default to dashboard
+    const targetLink = document.querySelector(`.nav-link[data-section="${initialSection}"]`);
+    if (targetLink) {
+        targetLink.click(); // This will trigger the section display and initialization
+    } else {
+        // Fallback if hash points to non-existent section
+        const dashboardLink = document.querySelector('.nav-link[data-section="dashboard"]');
+        if (dashboardLink) dashboardLink.click();
+    }
+}
+
+// Handle logout
+function handleLogout() {
+    fetch(`${API_BASE_URL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include'
+    })
+    .then(() => {
+        localStorage.removeItem('user');
+        window.location.href = '/login.html';
+    })
+    .catch(error => {
+        console.error('Logout error:', error);
+        localStorage.removeItem('user');
+        window.location.href = '/login.html';
+    });
+}
 
 // Initialize dashboard
 function initDashboard() {
@@ -2952,7 +2260,7 @@ function saveAppearanceSettings() {
         console.error('Error saving appearance settings:', error);
         alert('Error saving appearance settings: ' + error.message);
     });
-} 
+}
 
 // --- START: Global Settings Section Logic --- 
 

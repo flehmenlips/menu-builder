@@ -46,7 +46,7 @@ async function setupAdmin(name, email, password, setupKey) {
 
         // Verify setup key (Assuming site_settings table exists)
         const correctKey = await getSetting('setup_key');
-        console.log('Setup key check:', { provided: setupKey, correct: correctKey });
+                    console.log('Setup key check:', { provided: setupKey, correct: correctKey });
         if (setupKey !== correctKey && setupKey !== 'admin-setup-123') { // Keep fallback for initial setup?
             throw new Error('Invalid setup key');
         }
@@ -56,8 +56,8 @@ async function setupAdmin(name, email, password, setupKey) {
         await client.query('BEGIN');
 
         const hash = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
-        console.log('Creating admin user with email:', email);
-
+                        console.log('Creating admin user with email:', email);
+                        
         // Insert User
         const insertUserQuery = `
             INSERT INTO users (name, email, password_hash, is_admin, role, created_at) 
@@ -67,35 +67,35 @@ async function setupAdmin(name, email, password, setupKey) {
         const userResult = await client.query(insertUserQuery, [name || 'Admin', email, hash]);
         const userId = userResult.rows[0].id;
         // Note: organization_id might be NULL initially if not handled here
-        console.log('Admin user created with ID:', userId);
-
-        // Create JWT token
-        const token = jwt.sign(
+                                console.log('Admin user created with ID:', userId);
+                                
+                                // Create JWT token
+                                const token = jwt.sign(
             { userId: userId, email, isAdmin: true, role: 'SUPER_ADMIN' }, // Include role
-            JWT_SECRET,
-            { expiresIn: '7d' }
-        );
-
-        // Store session
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 7);
+                                    JWT_SECRET,
+                                    { expiresIn: '7d' }
+                                );
+                                
+                                // Store session
+                                const expiresAt = new Date();
+                                expiresAt.setDate(expiresAt.getDate() + 7);
         await client.query(
             'INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, $3)',
             [userId, token, expiresAt.toISOString()]
         );
-
-        // Update setup key to prevent reuse
-        const newSetupKey = Math.random().toString(36).substring(2, 15) +
-                         Math.random().toString(36).substring(2, 15);
+                                        
+                                        // Update setup key to prevent reuse
+                                        const newSetupKey = Math.random().toString(36).substring(2, 15) + 
+                                                         Math.random().toString(36).substring(2, 15);
         await updateSetting('setup_key', newSetupKey); // Use the async helper
 
         await client.query('COMMIT');
-
+                                        
         return {
-            id: userId,
-            name: name || 'Admin',
-            email,
-            token,
+                                                    id: userId,
+                                                    name: name || 'Admin',
+                                                    email,
+                                                    token,
             is_admin: true,
             role: 'SUPER_ADMIN'
         };
@@ -135,7 +135,7 @@ async function getUsers(page = 1, limit = 20, search = '') {
         `;
         const params = [];
         let paramIndex = 1;
-
+        
         if (search) {
             const searchCondition = ` WHERE name ILIKE $${paramIndex} OR email ILIKE $${paramIndex + 1}`;
             countQuery += searchCondition;
@@ -143,23 +143,23 @@ async function getUsers(page = 1, limit = 20, search = '') {
             params.push(`%${search}%`, `%${search}%`);
             paramIndex += 2;
         }
-
+        
         // Get total count
         const countResult = await query(countQuery, params);
         const total = parseInt(countResult.rows[0].total, 10);
-        const totalPages = Math.ceil(total / limit);
-
-        // Get users for current page
+                const totalPages = Math.ceil(total / limit);
+                
+                // Get users for current page
         dataQuery += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-        params.push(limit, offset);
+                params.push(limit, offset);
         const usersResult = await query(dataQuery, params);
 
         return {
             users: usersResult.rows,
-            page,
-            limit,
-            total,
-            totalPages
+                        page,
+                        limit,
+                        total,
+                        totalPages
         };
     } catch (err) {
         console.error('Error getting users:', err);
@@ -219,32 +219,32 @@ async function createUser(userData) {
             RETURNING id;
         `;
         const userParams = [
-            userData.name,
-            userData.email,
-            hash,
+                    userData.name,
+                    userData.email,
+                    hash,
             userData.is_admin === true, // Ensure boolean
             userData.role || 'USER', // Default to USER
-            userData.subscription_status || 'free',
+                    userData.subscription_status || 'free',
             userData.subscription_end_date || null,
             userData.organization_id
         ];
         const userResult = await client.query(insertUserQuery, userParams);
         const userId = userResult.rows[0].id;
-
-        // If company profile data provided, create it
-        if (userData.company_name) {
+                    
+                    // If company profile data provided, create it
+                    if (userData.company_name) {
             const insertProfileQuery = `
                 INSERT INTO company_profiles (
                     user_id, company_name, address, phone, email, website, created_at, updated_at
                 ) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             `;
             const profileParams = [
-                userId,
-                userData.company_name,
-                userData.address || null,
-                userData.phone || null,
+                                userId,
+                                userData.company_name,
+                                userData.address || null,
+                                userData.phone || null,
                 userData.company_email || userData.email, // Use company email or user email
-                userData.website || null
+                                userData.website || null
             ];
             await client.query(insertProfileQuery, profileParams);
         }
@@ -593,9 +593,9 @@ async function getPublicSettings(keys) {
         const sql = `SELECT setting_key, setting_value FROM site_settings WHERE setting_key IN (${placeholders})`;
         const result = await query(sql, keys);
         
-        const settings = {};
+            const settings = {};
         result.rows.forEach(row => {
-            settings[row.setting_key] = row.setting_value;
+                settings[row.setting_key] = row.setting_value;
         });
         // Ensure all requested keys are present, even if null
         keys.forEach(key => {

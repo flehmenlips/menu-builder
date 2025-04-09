@@ -51,26 +51,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     throw new Error(data.error);
                 }
                 
-                // DEBUG: Log the structure of the login response
-                console.log('Login API Response Data:', JSON.stringify(data, null, 2));
-
                 // Successful login
-                // CORRECTED: Store an object containing both user details and the token
-                // Assuming the token is at data.token and user details at data.user
-                const userDataToStore = {
-                    ...data.user, // Spread user details (id, name, email, is_admin, role, etc.)
-                    token: data.token // Add the token explicitly
-                };
-
-                if (!userDataToStore.token) {
-                     console.error("Login Success - BUT TOKEN IS MISSING FROM API RESPONSE!", data);
-                     // Decide how to handle this - maybe throw error?
-                     throw new Error("Login completed but server did not provide an authentication token.");
-                }
-
-                localStorage.setItem('user', JSON.stringify(userDataToStore));
-                console.log('Stored user data with token:', JSON.stringify(userDataToStore)); // Add log to confirm
-
+                localStorage.setItem('user', JSON.stringify(data.user));
+                
                 // Redirect to dashboard
                 window.location.href = '/menu-builder';
             })

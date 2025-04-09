@@ -477,7 +477,7 @@ app.post('/api/auth/login', async (req, res) => {
             path: '/' 
         });
         
-        // Return user data AND TOKEN in the response body
+        // Return user data in the response body (using direct properties from result)
         res.json({
             message: 'Login successful',
             user: {
@@ -485,10 +485,7 @@ app.post('/api/auth/login', async (req, res) => {
                 name: result.name,     // Use result.name
                 email: result.email,    // Use result.email
                 is_admin: result.is_admin // Use result.is_admin
-                // Include role if available in result object
-                // role: result.role 
-            },
-            token: result.token // <<< ADDED THE TOKEN HERE
+            }
         });
     } catch (error) {
         console.error('Login error:', error);

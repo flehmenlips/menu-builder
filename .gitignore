@@ -50,4 +50,8 @@ data/
 
 # OS generated files
 .DS_Store
-Thumbs.db 
+Thumbs.db
+
+# Uploaded assets
+public/images/
+uploads/ 

@@ -112,18 +112,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Use the potentially updated user data from the verify response
                  console.log("app-header: Server verification successful. Updating header.");
                 updateUserInfo(data.user || user); 
-                // Store potentially updated user data back in localStorage, PRESERVING TOKEN
+                // Store potentially updated user data back in localStorage
                 if (data.user) {
-                    // Get the current full user object (including token) from storage
-                    const currentUserData = JSON.parse(localStorage.getItem('user') || '{}');
-                    // Create the updated object: merge new details, keep existing token
-                    const updatedUserData = {
-                         ...currentUserData, // Keep existing properties (like token)
-                         ...data.user       // Overwrite with fresh details from verify endpoint
-                    };
-                    // Save the merged object back
-                    localStorage.setItem('user', JSON.stringify(updatedUserData));
-                    console.log('app-header: Updated localStorage user data, preserving token:', updatedUserData);
+                    localStorage.setItem('user', JSON.stringify(data.user));
                 }
             }
         })
