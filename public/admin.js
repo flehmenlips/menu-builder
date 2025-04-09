@@ -27,6 +27,12 @@ let globalSettingsInitialized = false; // Flag for new section
 
 // Main admin module
 document.addEventListener('DOMContentLoaded', async () => { // Make listener async
+    // --- COMPLETELY SIMPLIFIED FOR TESTING --- 
+    alert("Admin.js: DOMContentLoaded Fired!"); // Simplest possible test
+    console.log("Admin.js: DOMContentLoaded Fired!");
+    // --- END SIMPLIFICATION --- 
+
+    /* --- ORIGINAL CODE COMMENTED OUT FOR TESTING ---
     console.log('[DOMContentLoaded] Starting admin auth check...');
     const loggedInUser = await checkAdminAuth(); // Await the result
 
@@ -48,6 +54,7 @@ document.addEventListener('DOMContentLoaded', async () => { // Make listener asy
         console.log("*** [DOMContentLoaded] checkAdminAuth FAILED or user is not admin (returned null).");
         console.log("*****************************************************");
     }
+    --- END ORIGINAL CODE --- */
 });
 
 // ... existing code ...
