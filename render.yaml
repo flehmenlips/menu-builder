@@ -10,10 +10,6 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: DATABASE_URL
-        # This will be automatically injected by Render when you link
-        # the existing 'menu-builder-db' database in the Render dashboard.
-        # No 'fromDatabase' or 'value' needed here. Render handles it.
       - key: JWT_SECRET
         generateValue: true # Render will generate a secure random string
  
