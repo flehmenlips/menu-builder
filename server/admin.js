@@ -582,6 +582,41 @@ async function updateSettings(settingsData) {
     }
 }
 
+// Get specific public settings (NEW)
+async function getPublicSettings(keys) {
+    if (!Array.isArray(keys) || keys.length === 0) {
+        return {};
+    }
+    try {
+        // Use parameterized query to avoid SQL injection
+        const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
+        const sql = `SELECT setting_key, setting_value FROM site_settings WHERE setting_key IN (${placeholders})`;
+        const result = await query(sql, keys);
+        
+        const settings = {};
+        result.rows.forEach(row => {
+            settings[row.setting_key] = row.setting_value;
+        });
+        // Ensure all requested keys are present, even if null
+        keys.forEach(key => {
+             if (!settings.hasOwnProperty(key)) {
+                 settings[key] = null; // Or a default value
+             }
+        });
+        return settings;
+    } catch (err) {
+        console.error('Error getting public settings:', err);
+        // Check if table exists
+        if (err.message.includes('relation "site_settings" does not exist')) {
+            console.warn('site_settings table not found.');
+             const nullSettings = {};
+             keys.forEach(key => { nullSettings[key] = null; });
+             return nullSettings; // Return nulls if table missing
+        }
+        throw err;
+    }
+}
+
 // Export functions
 module.exports = {
     setupAdmin,
@@ -600,4 +635,5 @@ module.exports = {
     deletePlan,
     getAllSettings,
     updateSettings,
+    getPublicSettings,
 }; 

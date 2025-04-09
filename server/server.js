@@ -97,6 +97,35 @@ const contentImageUpload = multer({
     }
 });
 
+// NEW: Configure multer storage for APP BRANDING images
+const brandingUploadsDir = path.join(__dirname, '..', 'public', 'uploads', 'branding');
+if (!fs.existsSync(brandingUploadsDir)){
+    fs.mkdirSync(brandingUploadsDir, { recursive: true });
+    console.log(`Created branding uploads subdirectory: ${brandingUploadsDir}`);
+}
+
+const brandingImageStorage = multer.diskStorage({
+    destination: function(req, file, cb) {
+        cb(null, brandingUploadsDir);
+    },
+    filename: function(req, file, cb) {
+        // Use a consistent name for the app logo, overwrite if exists
+        const ext = path.extname(file.originalname);
+        cb(null, 'app-logo' + ext); 
+    }
+});
+
+const brandingImageUpload = multer({
+    storage: brandingImageStorage,
+    limits: { fileSize: 1 * 1024 * 1024 }, // 1MB limit for branding images
+    fileFilter: function(req, file, cb) {
+        if (!file.originalname.match(/\.(jpg|jpeg|png|gif|svg)$/i)) {
+            return cb(new Error('Only image files are allowed!'), false);
+        }
+        cb(null, true);
+    }
+});
+
 // Authentication middleware
 const authenticateUser = async (req, res, next) => {
   try {
@@ -158,6 +187,21 @@ const authorizeAdmin = (req, res, next) => {
   next();
 };
 
+// Super Admin authorization middleware (NEW)
+const authorizeSuperAdmin = (req, res, next) => {
+  // Should be used after authenticateUser
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  // Check the role property
+  if (req.user.role !== 'SUPER_ADMIN') {
+    console.warn(`Authorization failed: User ${req.user.id} (${req.user.email}) with role '${req.user.role}' tried to access SUPER_ADMIN route.`);
+    return res.status(403).json({ error: 'Super Admin privileges required' });
+  }
+  console.log(`Authorization success: User ${req.user.id} (${req.user.email}) is SUPER_ADMIN.`);
+  next();
+};
+
 // Middleware
 app.use(cors({
     origin: function (origin, callback) {
@@ -186,6 +230,23 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, '../public')));
 // ADDED: Serve static files from public/uploads directory under /uploads path
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+
+// --- START: Public API Routes --- 
+
+// NEW: Get public site settings (e.g., logo)
+app.get('/api/settings/public', async (req, res) => {
+    try {
+        // Define which settings are considered public
+        const publicSettingKeys = ['app_logo_path', 'site_name']; // Add more as needed
+        const settings = await admin.getPublicSettings(publicSettingKeys);
+        res.json(settings);
+    } catch (error) {
+        console.error('Error fetching public settings:', error);
+        res.status(500).json({ error: 'Failed to fetch public settings' });
+    }
+});
+
+// --- END: Public API Routes --- 
 
 // --- Public Auth Routes --- 
 // NEW: Endpoint for checking login status (used by main app header)
@@ -1170,6 +1231,42 @@ app.get('/api/user/dashboard-stats', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch dashboard statistics' });
     }
 });
+
+// --- START: Super Admin Routes --- 
+
+// NEW: Upload App Logo (Protected by Super Admin middleware)
+app.post('/api/admin/settings/app-logo', 
+    authenticateUser, 
+    authorizeSuperAdmin, 
+    brandingImageUpload.single('app_logo'), // Field name in the form data
+    async (req, res) => {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded or invalid file type.' });
+        }
+        
+        try {
+            // Path relative to the public directory root
+            const logoPath = `/uploads/branding/${req.file.filename}`;
+            console.log(`Super Admin ${req.user.id} uploaded new app logo: ${logoPath}`);
+
+            // Update the setting in the database
+            await admin.updateSettings({ 'app_logo_path': logoPath });
+            
+            console.log(`Successfully updated app_logo_path setting to: ${logoPath}`);
+            res.json({ success: true, logoPath: logoPath });
+
+        } catch (error) {
+            console.error('Error processing app logo upload and updating setting:', error);
+            // Attempt to clean up uploaded file on DB error?
+            // fs.unlink(req.file.path, (err) => { if (err) console.error("Error deleting uploaded file on failure:", err); });
+            res.status(500).json({ error: 'Server error processing logo upload.' });
+        }
+    }
+);
+
+// Add other super admin routes here...
+
+// --- END: Super Admin Routes --- 
 
 // Initialize DB and Start Server
 const startServer = async () => {
