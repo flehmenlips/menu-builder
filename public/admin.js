@@ -28,7 +28,7 @@ let globalSettingsInitialized = false; // Flag for new section
 // Main admin module
 document.addEventListener('DOMContentLoaded', async () => { // Make listener async
     console.log('[DOMContentLoaded] Starting admin auth check...');
-    alert('[DOMContentLoaded] Starting admin auth check...'); // Alert 1
+    // alert('[DOMContentLoaded] Starting admin auth check...'); // REMOVE Alert 1
     const loggedInUser = await checkAdminAuth(); // Await the result
 
     if (loggedInUser) {
@@ -36,36 +36,36 @@ document.addEventListener('DOMContentLoaded', async () => { // Make listener asy
         console.log("*** [DOMContentLoaded] checkAdminAuth SUCCEEDED! User:", loggedInUser);
         console.log("*****************************************************");
         
-        alert("*****************************************************");
-        alert("*** [DOMContentLoaded] checkAdminAuth SUCCEEDED! Proceeding..."); // Alert 2 (after SUCCESS alert from checkAdminAuth)
+        // alert("*****************************************************"); // REMOVE
+        // alert("*** [DOMContentLoaded] checkAdminAuth SUCCEEDED! Proceeding..."); // REMOVE Alert 2 (after SUCCESS alert from checkAdminAuth)
         
         try {
-            alert("[DOMContentLoaded] BEFORE displayUserInfo"); // Alert 3
+            // alert("[DOMContentLoaded] BEFORE displayUserInfo"); // REMOVE Alert 3
             displayUserInfo(loggedInUser); 
-            alert("[DOMContentLoaded] AFTER displayUserInfo"); // Alert 4
-        } catch (e) { alert(`ERROR in displayUserInfo: ${e}`); console.error("ERROR in displayUserInfo:", e); }
+            // alert("[DOMContentLoaded] AFTER displayUserInfo"); // REMOVE Alert 4
+        } catch (e) { /* alert(`ERROR in displayUserInfo: ${e}`); */ console.error("ERROR in displayUserInfo:", e); } // REMOVE Alert
         
         try {
-            alert("[DOMContentLoaded] BEFORE setupEventListeners"); // Alert 5
-            setupEventListeners(loggedInUser); 
-            alert("[DOMContentLoaded] AFTER setupEventListeners"); // Alert 6
-        } catch (e) { alert(`ERROR in setupEventListeners: ${e}`); console.error("ERROR in setupEventListeners:", e); }
+             // alert("[DOMContentLoaded] BEFORE setupEventListeners"); // REMOVE Alert 5
+             setupEventListeners(loggedInUser); 
+             // alert("[DOMContentLoaded] AFTER setupEventListeners"); // REMOVE Alert 6
+        } catch (e) { /* alert(`ERROR in setupEventListeners: ${e}`); */ console.error("ERROR in setupEventListeners:", e); } // REMOVE Alert
         
         try {
-            alert("[DOMContentLoaded] BEFORE navigateToSection"); // Alert 7
+            // alert("[DOMContentLoaded] BEFORE navigateToSection"); // REMOVE Alert 7
             const hash = window.location.hash.substring(1);
             navigateToSection(hash || 'dashboard', loggedInUser); // Restore this call
-            alert("[DOMContentLoaded] AFTER navigateToSection"); // Alert 8
-        } catch (e) { alert(`ERROR in navigateToSection: ${e}`); console.error("ERROR in navigateToSection:", e); }
+            // alert("[DOMContentLoaded] AFTER navigateToSection"); // REMOVE Alert 8
+        } catch (e) { /* alert(`ERROR in navigateToSection: ${e}`); */ console.error("ERROR in navigateToSection:", e); } // REMOVE Alert
         
-        alert("[DOMContentLoaded] End of successful block reached."); // Alert 9
+        // alert("[DOMContentLoaded] End of successful block reached."); // REMOVE Alert 9
 
     } else {
         console.log("*****************************************************");
         console.log("*** [DOMContentLoaded] checkAdminAuth FAILED or user is not admin (returned null).");
         console.log("*****************************************************");
-        alert("*****************************************************");
-        alert("*** [DOMContentLoaded] checkAdminAuth FAILED or user is not admin (returned null)."); // Alert 10
+        // alert("*****************************************************"); // REMOVE
+        // alert("*** [DOMContentLoaded] checkAdminAuth FAILED or user is not admin (returned null)."); // REMOVE Alert 10
     }
 });
 
@@ -111,6 +111,31 @@ function setupEventListeners(user) {
     // Add other event listeners as needed, passing `user` if required by their handlers
 }
 
+// Moved logout function definition earlier to fix ReferenceError in setupEventListeners
+function logout() {
+    // Show confirmation dialog
+    if (confirm('Are you sure you want to log out?')) {
+        // Send logout request to the server
+        fetch(`${API_BASE_URL}/auth/logout`, {
+            method: 'POST',
+            credentials: 'include'
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Clear local storage
+            localStorage.removeItem('user');
+            
+            // Redirect to login page
+            window.location.href = '/login.html';
+        })
+        .catch(error => {
+            console.error('Logout error:', error);
+            // Still redirect to login page even if there's an error
+            localStorage.removeItem('user');
+            window.location.href = '/login.html';
+        });
+    }
+}
 
 // Function to navigate between sections and initialize them
 // ACCEPTS USER OBJECT
@@ -1148,11 +1173,11 @@ async function checkAdminAuth() { // Make function async
             console.log("checkAdminAuth: Verification successful. User is admin.");
             hideSetupForm(); // Ensure setup form is hidden if verification succeeds
             // Add FINAL success alert before returning
-            alert(`[checkAdminAuth] SUCCESS! Returning user object:\n${JSON.stringify(data.user)}`);
+            // alert(`[checkAdminAuth] SUCCESS! Returning user object:\n${JSON.stringify(data.user)}`); // REMOVE Success alert
             return data.user;
         }
     } catch (error) {
-        // Log the FULL error object for more details
+        // alert(`[checkAdminAuth] Auth verification FETCH FAILED with error: ${error}. REDIRECTING.`); // REMOVE Failure alert
         console.error('checkAdminAuth: Auth verification fetch FAILED. Error Object:', error);
         localStorage.removeItem('user');
         window.location.href = '/login.html?admin=true&reason=verify_fetch_error';
@@ -1360,23 +1385,6 @@ function initNavigation() {
         const dashboardLink = document.querySelector('.nav-link[data-section="dashboard"]');
         if (dashboardLink) dashboardLink.click();
     }
-}
-
-// Handle logout
-function handleLogout() {
-    fetch(`${API_BASE_URL}/auth/logout`, {
-        method: 'POST',
-        credentials: 'include'
-    })
-    .then(() => {
-        localStorage.removeItem('user');
-        window.location.href = '/login.html';
-    })
-    .catch(error => {
-        console.error('Logout error:', error);
-        localStorage.removeItem('user');
-        window.location.href = '/login.html';
-    });
 }
 
 // Initialize dashboard
