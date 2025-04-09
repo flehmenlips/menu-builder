@@ -1168,8 +1168,14 @@ function showSetupForm() {
 
 // Hide admin setup form
 function hideSetupForm() {
-    document.getElementById('admin-setup').style.display = 'none';
-    document.querySelector('.admin-layout').style.display = 'flex';
+    const setupElement = document.getElementById('admin-setup');
+    if (setupElement) {
+        setupElement.style.display = 'none';
+    }
+    const layoutElement = document.querySelector('.admin-layout');
+    if (layoutElement) {
+        layoutElement.style.display = 'flex'; // Or 'block' depending on desired layout
+    }
 }
 
 // Initialize setup form
