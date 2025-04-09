@@ -1035,11 +1035,14 @@ function showLoginMessage(message, type = 'info') {
 async function checkAdminAuth() { // Make function async
     // Get user from localStorage
     const userJson = localStorage.getItem('user');
+    console.log('[checkAdminAuth] Raw data from localStorage["user"]:', userJson);
     let user = null;
     try {
         user = JSON.parse(userJson || 'null');
+        // Log the parsed object
+        console.log('[checkAdminAuth] Parsed user object from localStorage:', user);
     } catch (e) {
-        console.error("Error parsing user from localStorage:", e);
+        console.error("[checkAdminAuth] Error parsing user from localStorage:", e);
         localStorage.removeItem('user'); // Clear invalid data
         window.location.href = '/login.html?admin=true&reason=invalid_storage';
         return null; // Stop execution
@@ -1047,7 +1050,7 @@ async function checkAdminAuth() { // Make function async
 
     // If no user in localStorage, check if setup is needed or redirect
     if (!user) {
-        console.log("checkAdminAuth: No user in localStorage. Checking server setup status.");
+        console.log("[checkAdminAuth] No valid user object parsed. Checking server setup status.");
         try {
             const response = await fetch(`${API_BASE_URL}/admin/check`, {
                 method: 'GET',
@@ -1075,14 +1078,19 @@ async function checkAdminAuth() { // Make function async
         }
     }
 
+    // User object exists, log the token check specifically
+    console.log('[checkAdminAuth] Checking for token in parsed user object. user.token value:', user?.token);
+
     // User exists in localStorage, now verify token and admin status with the server
-    console.log("checkAdminAuth: User found in localStorage. Verifying token and admin status with server.");
     if (!user.token) {
-        console.error("checkAdminAuth: User object in localStorage is missing token.");
+        console.error("[checkAdminAuth] User object parsed from localStorage IS MISSING token property.");
         localStorage.removeItem('user');
         window.location.href = '/login.html?admin=true&reason=missing_token';
         return null; // Stop execution
     }
+
+    // Token exists, proceed with verification
+    console.log('[checkAdminAuth] Token found. Proceeding to verify with /api/auth/verify using token:', user.token);
 
     try {
         const response = await fetch(`${API_BASE_URL}/auth/verify`, { // Await fetch
