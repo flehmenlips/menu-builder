@@ -1035,14 +1035,16 @@ function showLoginMessage(message, type = 'info') {
 async function checkAdminAuth() { // Make function async
     // Get user from localStorage
     const userJson = localStorage.getItem('user');
-    console.log('[checkAdminAuth] Raw data from localStorage["user"]:', userJson);
+    // Use alert for debugging rapid redirects
+    alert(`[checkAdminAuth] Raw data from localStorage["user"]:\n${userJson}`);
     let user = null;
     try {
         user = JSON.parse(userJson || 'null');
-        // Log the parsed object
-        console.log('[checkAdminAuth] Parsed user object from localStorage:', user);
+        // Use alert for debugging
+        alert(`[checkAdminAuth] Parsed user object from localStorage:\n${JSON.stringify(user, null, 2)}`);
     } catch (e) {
         console.error("[checkAdminAuth] Error parsing user from localStorage:", e);
+        alert("[checkAdminAuth] Error parsing user from localStorage. Check console.");
         localStorage.removeItem('user'); // Clear invalid data
         window.location.href = '/login.html?admin=true&reason=invalid_storage';
         return null; // Stop execution
@@ -1051,39 +1053,42 @@ async function checkAdminAuth() { // Make function async
     // If no user in localStorage, check if setup is needed or redirect
     if (!user) {
         console.log("[checkAdminAuth] No valid user object parsed. Checking server setup status.");
+        alert("[checkAdminAuth] No valid user object parsed. Will check server setup.");
+        // ... (rest of the no-user logic which might also redirect)
+        // Add alerts within the try/catch block for setup check if needed
         try {
             const response = await fetch(`${API_BASE_URL}/admin/check`, {
                 method: 'GET',
                 credentials: 'include'
             });
             const data = await response.json();
-
+            alert(`[checkAdminAuth] Server setup check response: ${JSON.stringify(data)}`);
             if (data.needsSetup) {
-                console.log("checkAdminAuth: Admin setup needed.");
-                showSetupForm();
-                // Need to prevent further execution in DOMContentLoaded
-                // Returning null signals failure to authenticate/initialize
-                return null;
-            } else {
-                console.log("checkAdminAuth: No user and no setup needed. Redirecting to login.");
-                window.location.href = '/login.html?admin=true&reason=no_user';
-                return null; // Stop execution
-            }
-        } catch (error) {
-            console.error("checkAdminAuth: Error checking admin setup status:", error);
-            // Fallback might be to allow setup or redirect, let's redirect
-            console.log("checkAdminAuth: Error during setup check. Redirecting to login.");
-            window.location.href = '/login.html?admin=true&reason=setup_check_error';
-            return null; // Stop execution
-        }
+                 console.log("checkAdminAuth: Admin setup needed.");
+                 alert("[checkAdminAuth] Admin setup needed. Showing setup form.");
+                 showSetupForm();
+                 return null;
+             } else {
+                 console.log("checkAdminAuth: No user and no setup needed. Redirecting to login.");
+                 alert("[checkAdminAuth] No user and no setup needed. Redirecting to login.");
+                 window.location.href = '/login.html?admin=true&reason=no_user';
+                 return null; // Stop execution
+             }
+         } catch (error) {
+             console.error("checkAdminAuth: Error checking admin setup status:", error);
+             alert("[checkAdminAuth] Error checking server setup status. Redirecting to login. Check console.");
+             window.location.href = '/login.html?admin=true&reason=setup_check_error';
+             return null; // Stop execution
+         }
     }
 
-    // User object exists, log the token check specifically
-    console.log('[checkAdminAuth] Checking for token in parsed user object. user.token value:', user?.token);
+    // User object exists, use alert to show the token check specifically
+    alert(`[checkAdminAuth] Checking for token in parsed user object. user.token value:\n${user?.token}`);
 
     // User exists in localStorage, now verify token and admin status with the server
     if (!user.token) {
         console.error("[checkAdminAuth] User object parsed from localStorage IS MISSING token property.");
+        alert("[checkAdminAuth] Parsed user object IS MISSING token property. Redirecting to login.");
         localStorage.removeItem('user');
         window.location.href = '/login.html?admin=true&reason=missing_token';
         return null; // Stop execution
@@ -1091,6 +1096,7 @@ async function checkAdminAuth() { // Make function async
 
     // Token exists, proceed with verification
     console.log('[checkAdminAuth] Token found. Proceeding to verify with /api/auth/verify using token:', user.token);
+    alert(`[checkAdminAuth] Token found: ${user.token}. Proceeding to verify with server.`);
 
     try {
         const response = await fetch(`${API_BASE_URL}/auth/verify`, { // Await fetch
