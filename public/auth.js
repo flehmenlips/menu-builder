@@ -51,6 +51,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     throw new Error(data.error);
                 }
                 
+                // DEBUG: Log the structure of the login response
+                console.log('Login API Response Data:', JSON.stringify(data, null, 2));
+
                 // Successful login
                 localStorage.setItem('user', JSON.stringify(data.user));
                 
