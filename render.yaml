@@ -1,0 +1,19 @@
+services:
+  # Web Service (Node.js App)
+  - type: web
+    name: menu-builder-app
+    runtime: node
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: / # Your app serves index.html at '/', which confirms it's running
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        # This will be automatically injected by Render when you link
+        # the existing 'menu-builder-db' database in the Render dashboard.
+        # No 'fromDatabase' or 'value' needed here. Render handles it.
+      - key: JWT_SECRET
+        generateValue: true # Render will generate a secure random string
+ 
