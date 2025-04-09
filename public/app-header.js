@@ -129,6 +129,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Update user info in header
     function updateUserInfo(user) {
+        console.log('[updateUserInfo] Received user:', user); // DEBUGGING
         // Check if running in shadow DOM context (Web Component)
         const root = this.shadowRoot || document; // Use shadowRoot if available, else document
 
@@ -136,39 +137,65 @@ document.addEventListener('DOMContentLoaded', function() {
         const accountMenu = root.getElementById('account-menu') || root.querySelector('.user-dropdown');
         const loginButton = root.getElementById('login-button') || root.querySelector('.login-button'); // Try ID then class
         const dropdownUl = root.querySelector('.user-dropdown ul'); // Target the list within the dropdown
+        console.log('[updateUserInfo] Found dropdownUl:', dropdownUl); // DEBUGGING
 
-        // --- START: Remove existing admin link if present --- 
+        // --- START: Remove existing dynamic items --- 
         const existingAdminLi = root.querySelector('#admin-link-li');
+        const existingAdminIndicatorLi = root.querySelector('#admin-indicator-li');
         if (existingAdminLi) {
-            // Also remove the separator before it if it exists
             const precedingSeparator = existingAdminLi.previousElementSibling;
             if (precedingSeparator && precedingSeparator.tagName === 'LI' && precedingSeparator.querySelector('hr')) {
                 precedingSeparator.remove();
             }
             existingAdminLi.remove();
         }
-        // --- END: Remove existing admin link --- 
+        if (existingAdminIndicatorLi) {
+             existingAdminIndicatorLi.remove();
+        }
+        // --- END: Remove existing dynamic items --- 
 
         if (user) {
             if (userNameElement) userNameElement.textContent = user.name || user.email || 'My Account';
             if (accountMenu) accountMenu.style.display = 'block';
             if (loginButton) loginButton.style.display = 'none';
 
-            // Update dropdown links
+            // Update dropdown links (Consider simplifying if multiple links go to same place)
             const profileLink = root.getElementById('profile-link');
-            const settingsLink = root.getElementById('settings-link');
-            const companyLink = root.getElementById('company-link');
+            // const settingsLink = root.getElementById('settings-link'); // Removed, points to profile
+            // const companyLink = root.getElementById('company-link'); // Removed, points to profile
             const subscriptionLink = root.getElementById('subscription-link');
             const logoutLi = root.querySelector('#logout-link')?.closest('li'); // Find logout li
+            console.log('[updateUserInfo] Found logoutLi:', logoutLi); // DEBUGGING
 
             if(profileLink) profileLink.href = 'user.html#profile';
-            if(settingsLink) settingsLink.href = 'user.html#profile'; 
-            if(companyLink) companyLink.href = 'user.html#profile';
+            // if(settingsLink) settingsLink.href = 'user.html#profile'; 
+            // if(companyLink) companyLink.href = 'user.html#profile';
             if(subscriptionLink) subscriptionLink.href = 'user.html#billing';
 
-            // --- START: Add admin link if user is admin --- 
-            if (user.is_admin === true && dropdownUl) {
-                // Create the list item and link
+            // Determine if user is an admin type
+            const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'TENANT_ADMIN' || user.is_admin === true;
+            console.log(`[updateUserInfo] isAdmin check based on role ('${user.role}') or is_admin ('${user.is_admin}'):`, isAdmin); // DEBUGGING
+
+            if (isAdmin && dropdownUl) {
+                // --- START: Add Admin/Super Admin Indicator --- 
+                const indicatorLi = document.createElement('li');
+                indicatorLi.id = 'admin-indicator-li';
+                indicatorLi.textContent = user.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin';
+                indicatorLi.style.padding = '8px 16px';
+                indicatorLi.style.color = '#6c757d'; // Bootstrap secondary color
+                indicatorLi.style.fontSize = '0.875em';
+                indicatorLi.style.textAlign = 'center';
+                indicatorLi.style.borderBottom = '1px solid #eee'; // Separator below indicator
+
+                // Insert indicator at the top of the dropdown list
+                if (dropdownUl.firstChild) {
+                    dropdownUl.insertBefore(indicatorLi, dropdownUl.firstChild);
+                } else {
+                    dropdownUl.appendChild(indicatorLi);
+                }
+                // --- END: Add Admin/Super Admin Indicator --- 
+
+                // --- START: Add Admin Panel Link --- 
                 const adminLi = document.createElement('li');
                 adminLi.id = 'admin-link-li'; // ID for easy removal
                 const adminLink = document.createElement('a');
@@ -177,25 +204,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 adminLink.id = 'admin-panel-link';
                 adminLi.appendChild(adminLink);
 
-                // Create a separator
                 const separatorLi = document.createElement('li');
-                separatorLi.style.padding = '0'; // Remove padding for hr
+                separatorLi.style.padding = '0'; 
                 separatorLi.innerHTML = '<hr style="margin: 4px 0; border-color: #eee;">';
 
-                // Insert before the logout link, or append if logout link isn't found
                 if (logoutLi) {
                     dropdownUl.insertBefore(separatorLi, logoutLi);
                     dropdownUl.insertBefore(adminLi, logoutLi);
                 } else {
-                    // Fallback if logout link isn't in an li or not found
                     dropdownUl.appendChild(separatorLi);
                     dropdownUl.appendChild(adminLi);
                 }
+                 // --- END: Add Admin Panel Link --- 
             }
-            // --- END: Add admin link --- 
 
         } else {
-            // Handle logged-out state (admin link is already removed above)
+            // Handle logged-out state (admin items are already removed above)
             if (userNameElement) userNameElement.textContent = '';
             if (accountMenu) accountMenu.style.display = 'none';
             if (loginButton) loginButton.style.display = 'inline-block';
