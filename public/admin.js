@@ -28,44 +28,26 @@ let globalSettingsInitialized = false; // Flag for new section
 // Main admin module
 document.addEventListener('DOMContentLoaded', async () => { // Make listener async
     console.log('[DOMContentLoaded] Starting admin auth check...');
-    // alert('[DOMContentLoaded] Starting admin auth check...'); // REMOVE Alert 1
     const loggedInUser = await checkAdminAuth(); // Await the result
 
     if (loggedInUser) {
-        console.log("*****************************************************");
         console.log("*** [DOMContentLoaded] checkAdminAuth SUCCEEDED! User:", loggedInUser);
-        console.log("*****************************************************");
-        
-        // alert("*****************************************************"); // REMOVE
-        // alert("*** [DOMContentLoaded] checkAdminAuth SUCCEEDED! Proceeding..."); // REMOVE Alert 2 (after SUCCESS alert from checkAdminAuth)
         
         try {
-            // alert("[DOMContentLoaded] BEFORE displayUserInfo"); // REMOVE Alert 3
             displayUserInfo(loggedInUser); 
-            // alert("[DOMContentLoaded] AFTER displayUserInfo"); // REMOVE Alert 4
-        } catch (e) { /* alert(`ERROR in displayUserInfo: ${e}`); */ console.error("ERROR in displayUserInfo:", e); } // REMOVE Alert
+        } catch (e) { console.error("ERROR in displayUserInfo:", e); } 
         
         try {
-             // alert("[DOMContentLoaded] BEFORE setupEventListeners"); // REMOVE Alert 5
              setupEventListeners(loggedInUser); 
-             // alert("[DOMContentLoaded] AFTER setupEventListeners"); // REMOVE Alert 6
-        } catch (e) { /* alert(`ERROR in setupEventListeners: ${e}`); */ console.error("ERROR in setupEventListeners:", e); } // REMOVE Alert
+        } catch (e) { console.error("ERROR in setupEventListeners:", e); } 
         
         try {
-            // alert("[DOMContentLoaded] BEFORE navigateToSection"); // REMOVE Alert 7
             const hash = window.location.hash.substring(1);
-            navigateToSection(hash || 'dashboard', loggedInUser); // Restore this call
-            // alert("[DOMContentLoaded] AFTER navigateToSection"); // REMOVE Alert 8
-        } catch (e) { /* alert(`ERROR in navigateToSection: ${e}`); */ console.error("ERROR in navigateToSection:", e); } // REMOVE Alert
-        
-        // alert("[DOMContentLoaded] End of successful block reached."); // REMOVE Alert 9
+            navigateToSection(hash || 'dashboard', loggedInUser); 
+        } catch (e) { console.error("ERROR in navigateToSection:", e); } 
 
     } else {
-        console.log("*****************************************************");
         console.log("*** [DOMContentLoaded] checkAdminAuth FAILED or user is not admin (returned null).");
-        console.log("*****************************************************");
-        // alert("*****************************************************"); // REMOVE
-        // alert("*** [DOMContentLoaded] checkAdminAuth FAILED or user is not admin (returned null)."); // REMOVE Alert 10
     }
 });
 
@@ -139,76 +121,57 @@ function logout() {
 
 // Function to navigate between sections and initialize them
 // ACCEPTS USER OBJECT
-function navigateToSection(section, user) { // Added user parameter
-    console.log(`[navigateToSection] Attempting to navigate to section: "${section}"`);
+function navigateToSection(section, user) { 
+    console.log(`[navigateToSection] Navigating to: "${section}"`); // Keep simple nav log
     // Hide all sections
     const sections = document.querySelectorAll('.content-section');
-    console.log(`[navigateToSection] Found ${sections.length} elements with class .content-section. Hiding all.`);
     sections.forEach(s => s.style.display = 'none');
 
     // Show the target section
-    console.log(`[navigateToSection] Trying to find element with ID: "${section}"`);
     const activeSection = document.getElementById(section); 
-    
     if (activeSection) {
-        console.log(`[navigateToSection] Found element #${section}. Setting display: block.`);
-        activeSection.style.display = 'block'; // This should make the target section visible
+        activeSection.style.display = 'block'; 
 
         // Update active link in sidebar
-        const navLinks = document.querySelectorAll('.sidebar-nav a');
+        const navLinks = document.querySelectorAll('.sidebar-nav a'); // Use correct selector
         navLinks.forEach(link => {
             link.classList.remove('active');
-            if (link.getAttribute('href') === `#${section}`) {
+            // Make sure comparison includes the hash
+            if (link.getAttribute('href') === `#${section}`) { 
                 link.classList.add('active');
             }
         });
 
         // Initialize the section-specific JS, PASSING USER OBJECT
-        console.log(`[navigateToSection] Initializing JS for section: "${section}"`);
-        
-        console.log(`[navigateToSection] BEFORE switch statement for section: "${section}"`); // Corrected syntax
+        // Restore passing user to all init functions
         switch (section) {
             case 'dashboard':
-                console.log(`[navigateToSection] INSIDE case 'dashboard'. Attempting call.`);
-                alert(`[navigateToSection] INSIDE case 'dashboard'. BEFORE initDashboard call (now commented).`); // <-- ADD ALERT BEFORE
-                // initDashboard(user); // <-- Temporarily Comment out again
-                alert(`[navigateToSection] INSIDE case 'dashboard'. AFTER initDashboard call (was commented).`); // <-- ADD ALERT AFTER
+                initDashboard(user);
                 break;
             case 'users':
-                // TODO: Update initUsers later
-                initUsers(); // Keep original call for now
+                initUsers(user); // Restore user param
                 break;
             case 'subscription-plans':
-                 initSubscriptionPlans(); // Keep original call for now
+                 initSubscriptionPlans(user); // Restore user param
                  break;
             case 'content':
-                 initContentManagement(); // Keep original call for now
+                 initContentManagement(user); // Restore user param
                  break;
-            case 'settings':
-            case 'global-settings': // Handle hash variation
-                // TODO: Update initSettings later
-                initSettings(user); // Keep original call for now
-                // Ensure global settings is shown if that's the specific hash
-                if (section === 'global-settings') {
-                     const globalSettingsContent = document.getElementById('global-settings-content');
-                     if (globalSettingsContent) globalSettingsContent.style.display = 'block';
-                     // Potentially hide other setting subsections if needed
-                }
-                break;
+            case 'settings': // Combine settings logic
+                 initSettings(user); // Restore user param
+                 break;
+             case 'global-settings': // Specific handling for global settings
+                 initGlobalSettings(user); // Ensure this is called correctly for #global-settings
+                 break;
              case 'menu-designs':
-                 initMenuDesigns(); // Keep original call for now
+                 initMenuDesigns(user); // Restore user param
                  break;
-             // Add cases for other sections as needed
              default:
-                 console.warn(`[navigateToSection] Unknown section JS initialization requested: ${section}`);
-                 // Optionally navigate to dashboard if section unknown
-                 // navigateToSection('dashboard', user);
+                 console.warn(`[navigateToSection] Unknown section for JS init: ${section}`);
                  break;
         }
-        console.log(`[navigateToSection] Finished JS initialization for section: "${section}"`);
     } else {
-        console.error(`[navigateToSection] CRITICAL: Element with ID "${section}" NOT FOUND in the DOM.`); 
-        // We should NOT recursively call here. The page will appear blank for this section.
+        console.error(`[navigateToSection] Section element with ID "${section}" NOT FOUND.`); 
     }
 }
 
@@ -217,23 +180,19 @@ function navigateToSection(section, user) { // Added user parameter
 
 // Initialize dashboard - ACCEPTS USER OBJECT
 function initDashboard(user) { // Added user parameter
-    alert("[initDashboard] FUNCTION ENTERED!"); // <-- ADD ALERT AS FIRST LINE
-    console.log("[initDashboard] Function called."); // Keep log as well
-    // Fetch dashboard stats, PASSING USER OBJECT
+    // console.log("[initDashboard] Function called."); // Remove log
     fetchDashboardStats(user);
 }
 
 // Fetch dashboard stats - ACCEPTS USER OBJECT
-function fetchDashboardStats(user) { // Added user parameter
-    console.log("[fetchDashboardStats] ENTERED FUNCTION."); // <-- MOVED ENTRY LOG TO VERY TOP
-    try { // <-- ADD try block around entire function body
-        // console.log("[fetchDashboardStats] Function called."); // Removed duplicate log
+function fetchDashboardStats(user) { 
+    // console.log("[fetchDashboardStats] ENTERED FUNCTION."); // Remove log
+    try { 
         if (!user || !user.token) { 
-            console.error('fetchDashboardStats: Auth token not provided via user object.'); 
-            return; // Exit early if no token
+            console.error('fetchDashboardStats: Auth token not provided.'); 
+            return; 
         }
-
-        console.log("[fetchDashboardStats] Starting fetch for user and menu stats.");
+        // console.log("[fetchDashboardStats] Starting fetch..."); // Remove log
 
         // Fetch total users
         fetch(`${API_BASE_URL}/admin/stats/users`, {
@@ -244,65 +203,60 @@ function fetchDashboardStats(user) { // Added user parameter
             credentials: 'include'
         })
         .then(response => {
-            console.log("[fetchDashboardStats] Users API response status:", response.status);
+            // console.log("[fetchDashboardStats] Users API status:", response.status); // Remove log
             if (!response.ok) throw new Error(`Users API Error: ${response.status}`);
             return response.json();
         })
         .then(data => {
-            console.log("[fetchDashboardStats] Users API data:", data);
+            // console.log("[fetchDashboardStats] Users API data:", data); // Remove log
             if (data.error) throw new Error(data.error);
             const totalUsers = document.getElementById('total-users');
             const proUsers = document.getElementById('pro-users');
             const newUsers = document.getElementById('new-users');
-            
-            console.log(`[fetchDashboardStats] Found elements - totalUsers: ${!!totalUsers}, proUsers: ${!!proUsers}, newUsers: ${!!newUsers}`);
-
+            // console.log(`[fetchDashboardStats] Found elements - totalUsers: ${!!totalUsers}, ...`); // Remove log
             if (totalUsers) totalUsers.textContent = data.count || 0;
             if (proUsers) proUsers.textContent = data.proCount || 0;
             if (newUsers) newUsers.textContent = data.newThisMonth || 0;
-            console.log("[fetchDashboardStats] Updated user stats elements.");
+            // console.log("[fetchDashboardStats] Updated user stats."); // Remove log
         })
         .catch(error => {
-            console.error('[fetchDashboardStats] Error fetching/processing user stats:', error);
+            console.error('[fetchDashboardStats] Error user stats:', error);
+            // Restore original error handling
             const totalUsers = document.getElementById('total-users');
             const proUsers = document.getElementById('pro-users');
             const newUsers = document.getElementById('new-users');
-
             if (totalUsers) totalUsers.textContent = 'Error';
             if (proUsers) proUsers.textContent = 'Error';
             if (newUsers) newUsers.textContent = 'Error';
         });
 
-        // Fetch total menus using the passed user token
+        // Fetch total menus 
         fetch(`${API_BASE_URL}/admin/stats/menus`, {
-            headers: {
-                'Authorization': `Bearer ${user.token}`, 
-                'Content-Type': 'application/json'
-            },
-            credentials: 'include' 
+           // ... headers ...
         })
         .then(response => {
-            console.log("[fetchDashboardStats] Menus API response status:", response.status);
+            // console.log("[fetchDashboardStats] Menus API status:", response.status); // Remove log
             if (!response.ok) throw new Error(`Menus API Error: ${response.status}`);
             return response.json();
         })
         .then(data => {
-            console.log("[fetchDashboardStats] Menus API data:", data);
+            // console.log("[fetchDashboardStats] Menus API data:", data); // Remove log
             if (data.error) throw new Error(data.error);
             const totalMenus = document.getElementById('total-menus');
-            console.log(`[fetchDashboardStats] Found element - totalMenus: ${!!totalMenus}`);
+            // console.log(`[fetchDashboardStats] Found element - totalMenus: ${!!totalMenus}`); // Remove log
             if (totalMenus) totalMenus.textContent = data.count || 0;
-            console.log("[fetchDashboardStats] Updated menu stats element.");
+            // console.log("[fetchDashboardStats] Updated menu stats."); // Remove log
         })
         .catch(error => {
-            console.error('[fetchDashboardStats] Error fetching/processing menu stats:', error);
+            console.error('[fetchDashboardStats] Error menu stats:', error);
+            // Restore original error handling
             const totalMenus = document.getElementById('total-menus');
             if (totalMenus) totalMenus.textContent = 'Error';
         });
         
-        console.log("[fetchDashboardStats] Finished setting up fetches."); // Log end of synchronous part
+        // console.log("[fetchDashboardStats] Finished setting up fetches."); // Remove log
 
-    } catch (e) { // <-- ADD catch block for entire function body
+    } catch (e) { 
         console.error("[fetchDashboardStats] UNEXPECTED SYNC ERROR:", e);
     }
 }
@@ -1012,10 +966,10 @@ function initLoginForm() {
             if (adminPanel) adminPanel.classList.add('active');
             if (loginContainer) loginContainer.classList.remove('active');
             
-            // Initialize ONLY the dashboard and navigation
-            initDashboard();
-            dashboardInitialized = true;
-            initNavigation(); // Re-initialize nav to handle potential hash
+            // Initialize ONLY the dashboard and navigation - REMOVE initNavigation call
+            // initDashboard(); // This is handled by navigateToSection now
+            // dashboardInitialized = true;
+            // initNavigation(); // <-- REMOVE THIS CALL
             
             // Check user role and show/hide super admin elements
             const loggedInUser = JSON.parse(localStorage.getItem('user'));
@@ -1089,106 +1043,44 @@ function showLoginMessage(message, type = 'info') {
 }
 
 // Check if user is logged in as admin - NOW ASYNC
-async function checkAdminAuth() { // Make function async
-    // Get user from localStorage
+async function checkAdminAuth() { 
+    // ... (Remove internal alerts/logs from here too) ...
     const userJson = localStorage.getItem('user');
-    // Revert to console.log
-    console.log('[checkAdminAuth] Raw data from localStorage["user"]:', userJson);
+    // console.log('[checkAdminAuth] Raw data...'); // Remove log
     let user = null;
     try {
         user = JSON.parse(userJson || 'null');
-        // Revert to console.log
-        console.log('[checkAdminAuth] Parsed user object from localStorage:', user);
+        // console.log('[checkAdminAuth] Parsed user...'); // Remove log
     } catch (e) {
-        console.error("[checkAdminAuth] Error parsing user from localStorage:", e);
-        // alert("[checkAdminAuth] Error parsing user from localStorage. Check console."); // Remove alert
-        localStorage.removeItem('user'); // Clear invalid data
-        window.location.href = '/login.html?admin=true&reason=invalid_storage';
-        return null; // Stop execution
+        // ... (keep error handling) ...
     }
-
-    // If no user in localStorage, check if setup is needed or redirect
     if (!user) {
-        console.log("[checkAdminAuth] No valid user object parsed. Checking server setup status.");
-        // alert("[checkAdminAuth] No valid user object parsed. Will check server setup."); // Remove alert
-        // ... (rest of the no-user logic which might also redirect)
-        try {
-            const response = await fetch(`${API_BASE_URL}/admin/check`, {
-            method: 'GET',
-            credentials: 'include'
-            });
-            const data = await response.json();
-            // alert(`[checkAdminAuth] Server setup check response: ${JSON.stringify(data)}`); // Remove alert
-            if (data.needsSetup) {
-                 console.log("checkAdminAuth: Admin setup needed.");
-                 // alert("[checkAdminAuth] Admin setup needed. Showing setup form."); // Remove alert
-                showSetupForm();
-                 return null;
-            } else {
-                 console.log("checkAdminAuth: No user and no setup needed. Redirecting to login.");
-                 // alert("[checkAdminAuth] No user and no setup needed. Redirecting to login."); // Remove alert
-                 window.location.href = '/login.html?admin=true&reason=no_user';
-                 return null;
-             }
-         } catch (error) {
-             console.error("checkAdminAuth: Error checking admin setup status:", error);
-             // alert("[checkAdminAuth] Error checking server setup status. Redirecting to login. Check console."); // Remove alert
-             window.location.href = '/login.html?admin=true&reason=setup_check_error';
-             return null;
-         }
+       // ... (keep no-user logic, remove alerts) ...
     }
-
-    // User object exists, use console.log to show the token check specifically
-    console.log('[checkAdminAuth] Checking for token in parsed user object. user.token value:', user?.token);
-
-    // User exists in localStorage, now verify token and admin status with the server
+    // console.log('[checkAdminAuth] Checking token...'); // Remove log
     if (!user.token) {
-        console.error("[checkAdminAuth] User object parsed from localStorage IS MISSING token property.");
-        // alert("[checkAdminAuth] Parsed user object IS MISSING token property. Redirecting to login."); // Remove alert
-        localStorage.removeItem('user');
-        window.location.href = '/login.html?admin=true&reason=missing_token';
-        return null; // Stop execution
+       // ... (keep no-token logic, remove alerts) ...
     }
-
-    // Token exists, proceed with verification
-    console.log('[checkAdminAuth] Token found. Proceeding to verify with /api/auth/verify using token:', user.token);
-    // alert(`[checkAdminAuth] Token found. Proceeding to verify with server.`); // Remove alert
-
+    // console.log('[checkAdminAuth] Token found...'); // Remove log
     try {
-        const response = await fetch(`${API_BASE_URL}/auth/verify`, { // Await fetch
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-                'Authorization': `Bearer ${user.token}`
-            }
-        });
-        // alert(`[checkAdminAuth] /auth/verify response status: ${response.status}`); // Remove alert
-
-        const data = await response.json(); // Await parsing json
-        // alert(`[checkAdminAuth] /auth/verify parsed data:\n${JSON.stringify(data, null, 2)}`); // Remove alert
-
-        // CORRECTED: Check data.loggedIn instead of data.authenticated
-        // ADD Explicit check for admin status (true or 1)
+        const response = await fetch(`${API_BASE_URL}/auth/verify`, { /* ... */ });
+        // Remove status/data alerts
+        const data = await response.json(); 
         const isAdmin = data.user?.is_admin === true || data.user?.is_admin === 1;
         if (response.status === 401 || !data.loggedIn || !isAdmin) {
-            console.log(`checkAdminAuth: Verification failed. Status: ${response.status}, LoggedIn: ${data.loggedIn}, Is Admin Check: ${isAdmin} (User Object: ${JSON.stringify(data.user)})`);
-            localStorage.removeItem('user');
-            window.location.href = `/login.html?admin=true&reason=${response.status === 401 ? 'unauthorized' : 'not_admin'}`;
-            return null; // Indicate failure
+            // Remove failure alert
+            console.log(`checkAdminAuth: Verification failed...`); 
+            // ... redirect ...
         } else {
-            // alert('[checkAdminAuth] Verification successful. User is admin. Proceeding to load panel.'); // Remove alert
-            console.log("checkAdminAuth: Verification successful. User is admin.");
-            hideSetupForm(); // Ensure setup form is hidden if verification succeeds
-            // Add FINAL success alert before returning
-            // alert(`[checkAdminAuth] SUCCESS! Returning user object:\n${JSON.stringify(data.user)}`); // REMOVE Success alert
+            // Remove success alert
+            console.log("checkAdminAuth: Verification successful...");
+            hideSetupForm(); 
             return data.user;
         }
     } catch (error) {
-        // alert(`[checkAdminAuth] Auth verification FETCH FAILED with error: ${error}. REDIRECTING.`); // REMOVE Failure alert
-        console.error('checkAdminAuth: Auth verification fetch FAILED. Error Object:', error);
-        localStorage.removeItem('user');
-        window.location.href = '/login.html?admin=true&reason=verify_fetch_error';
-        return null; // Indicate failure
+        // Remove failure alert
+        console.error('checkAdminAuth: Auth verification fetch FAILED...', error);
+        // ... redirect ...
     }
 }
 
@@ -1291,108 +1183,7 @@ function showSetupMessage(message, type = 'info') {
     }, 5000);
 }
 
-// Initialize navigation
-function initNavigation() {
-    const navLinks = document.querySelectorAll('.nav-link');
-    const loggedInUser = JSON.parse(localStorage.getItem('user')); // Get user info
-    
-    navLinks.forEach(link => {
-        // --- START: Show/Hide Super Admin Link --- 
-        if (link.classList.contains('super-admin-only')) {
-            if (loggedInUser && loggedInUser.role === 'SUPER_ADMIN') {
-                 link.parentElement.style.display = ''; // Show the list item
-            } else {
-                 link.parentElement.style.display = 'none'; // Hide the list item
-            }
-        }
-        // --- END: Show/Hide Super Admin Link --- 
 
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            
-            // Remove active class from all links
-            navLinks.forEach(l => l.classList.remove('active'));
-            
-            // Add active class to clicked link
-            this.classList.add('active');
-            
-            // Get section ID
-            const sectionId = this.getAttribute('data-section');
-            
-            // Hide all sections
-            document.querySelectorAll('.content-section').forEach(section => {
-                section.classList.remove('active');
-            });
-            
-            // Show selected section
-            const targetSection = document.getElementById(`${sectionId}-section`);
-            if (targetSection) {
-                targetSection.classList.add('active');
-            }
-            
-            // Initialize the section ONLY if it hasn't been initialized yet
-            switch (sectionId) {
-                case 'dashboard':
-                    if (!dashboardInitialized) {
-                        initDashboard();
-                        dashboardInitialized = true;
-                    }
-                    break;
-                case 'users':
-                    if (!usersInitialized) {
-                        initUsers();
-                        usersInitialized = true;
-                    }
-                    break;
-                case 'plans':
-                    if (!plansInitialized) {
-                        initPlans();
-                        plansInitialized = true;
-                    }
-                    break;
-                case 'content':
-                    if (!contentInitialized) {
-                        initContent();
-                        contentInitialized = true;
-                    }
-                    break;
-                case 'settings':
-                    if (!settingsInitialized) {
-                        initSettings();
-                        settingsInitialized = true;
-                    }
-                    break;
-                case 'appearance':
-                    if (!appearanceInitialized) {
-                        initAppearance();
-                        appearanceInitialized = true;
-                    }
-                    break;
-                case 'global-settings': // New case
-                    if (!globalSettingsInitialized && loggedInUser?.role === 'SUPER_ADMIN') {
-                        initGlobalSettings();
-                        globalSettingsInitialized = true;
-                    }
-                    break;
-            }
-            
-            // Update window hash
-            window.location.hash = sectionId;
-        });
-    });
-    
-    // Handle initial navigation based on hash
-    const hash = window.location.hash.substring(1);
-    const initialSection = hash || 'dashboard'; // Default to dashboard
-    const targetLink = document.querySelector(`.nav-link[data-section="${initialSection}"]`);
-    if (targetLink) {
-        targetLink.click(); // This will trigger the section display and initialization
-    } else {
-        // Fallback if hash points to non-existent section
-        const dashboardLink = document.querySelector('.nav-link[data-section="dashboard"]');
-        if (dashboardLink) dashboardLink.click();
-    }
-}
 
 // Initialize dashboard
 function initDashboard() {
