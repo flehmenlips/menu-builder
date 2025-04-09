@@ -52,10 +52,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 // Successful login
-                localStorage.setItem('user', JSON.stringify(data.user));
+                const userDataForStorage = {
+                    ...data.user,
+                    token: data.token
+                };
+                localStorage.setItem('user', JSON.stringify(userDataForStorage));
                 
-                // Redirect to dashboard
-                window.location.href = '/menu-builder';
+                // Redirect based on admin status
+                if (data.user && data.user.is_admin) {
+                    window.location.href = '/admin.html';
+                } else {
+                    window.location.href = '/menu-builder';
+                }
             })
             .catch(error => {
                 // Show error message
