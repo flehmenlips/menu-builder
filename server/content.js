@@ -1,322 +1,235 @@
-const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-// Database connection
-const db = new sqlite3.Database(path.join(__dirname, 'data/menus.db'));
+// Use the shared pool from database.js instead
+const { query } = require('./database');
 
-// Get all content blocks
-function getAllContent() {
-    return new Promise((resolve, reject) => {
-        db.all('SELECT * FROM content_blocks ORDER BY section, order_index', (err, rows) => {
-            if (err) return reject(err);
-            
-            // Parse metadata JSON
-            rows.forEach(row => {
-                try {
-                    if (row.metadata) {
-                        row.metadata = JSON.parse(row.metadata);
-                    } else {
-                        row.metadata = {};
-                    }
-                } catch (e) {
-                    row.metadata = {};
-                }
-            });
-            
-            resolve(rows);
-        });
-    });
-}
-
-// Get content blocks by section
-function getContentBySection(section) {
-    return new Promise((resolve, reject) => {
-        db.all(
-            'SELECT * FROM content_blocks WHERE section = ? ORDER BY order_index',
-            [section],
-            (err, rows) => {
-                if (err) return reject(err);
-                
-                // Parse metadata JSON
-                rows.forEach(row => {
-                    try {
-                        if (row.metadata) {
-                            row.metadata = JSON.parse(row.metadata);
-                        } else {
-                            row.metadata = {};
-                        }
-                    } catch (e) {
-                        row.metadata = {};
-                    }
-                });
-                
-                resolve(rows);
-            }
-        );
-    });
-}
-
-// Get a single content block by ID
-function getContentById(id) {
-    return new Promise((resolve, reject) => {
-        db.get('SELECT * FROM content_blocks WHERE id = ?', [id], (err, row) => {
-            if (err) return reject(err);
-            if (!row) return reject(new Error('Content block not found'));
-            
-            // Parse metadata JSON
-            try {
-                if (row.metadata) {
-                    row.metadata = JSON.parse(row.metadata);
-                } else {
-                    row.metadata = {};
-                }
-            } catch (e) {
-                row.metadata = {};
-            }
-            
-            resolve(row);
-        });
-    });
-}
-
-// Get a single content block by identifier
-function getContentByIdentifier(identifier) {
-    return new Promise((resolve, reject) => {
-        db.get('SELECT * FROM content_blocks WHERE identifier = ?', [identifier], (err, row) => {
-            if (err) return reject(err);
-            if (!row) return reject(new Error('Content block not found'));
-            
-            // Parse metadata JSON
-            try {
-                if (row.metadata) {
-                    row.metadata = JSON.parse(row.metadata);
-                } else {
-                    row.metadata = {};
-                }
-            } catch (e) {
-                row.metadata = {};
-            }
-            
-            resolve(row);
-        });
-    });
-}
-
-// Update content block
-function updateContent(id, data, userId) {
-    return new Promise((resolve, reject) => {
-        getContentById(id)
-            .then(content => {
-                const updates = [];
-                const params = [];
-                
-                if (data.title !== undefined) {
-                    updates.push('title = ?');
-                    params.push(data.title);
-                }
-                
-                if (data.content !== undefined) {
-                    updates.push('content = ?');
-                    params.push(data.content);
-                }
-                
-                if (data.content_type !== undefined) {
-                    updates.push('content_type = ?');
-                    params.push(data.content_type);
-                }
-                
-                if (data.section !== undefined) {
-                    updates.push('section = ?');
-                    params.push(data.section);
-                }
-                
-                if (data.order_index !== undefined) {
-                    updates.push('order_index = ?');
-                    params.push(data.order_index);
-                }
-                
-                if (data.is_active !== undefined) {
-                    updates.push('is_active = ?');
-                    params.push(data.is_active ? 1 : 0);
-                }
-                
-                if (data.metadata !== undefined) {
-                    updates.push('metadata = ?');
-                    
-                    // Convert metadata to JSON string
-                    let metadataStr;
-                    try {
-                        metadataStr = JSON.stringify(data.metadata);
-                    } catch (e) {
-                        metadataStr = '{}';
-                    }
-                    
-                    params.push(metadataStr);
-                }
-                
-                if (updates.length === 0) {
-                    return resolve(content);
-                }
-                
-                updates.push('modified_at = CURRENT_TIMESTAMP');
-                
-                if (userId) {
-                    updates.push('created_by = ?');
-                    params.push(userId);
-                }
-                
-                params.push(id);
-                
-                db.run(
-                    `UPDATE content_blocks SET ${updates.join(', ')} WHERE id = ?`,
-                    params,
-                    function(err) {
-                        if (err) return reject(err);
-                        
-                        getContentById(id)
-                            .then(resolve)
-                            .catch(reject);
-                    }
-                );
-            })
-            .catch(reject);
-    });
-}
-
-// Create new content block
-function createContent(data, userId) {
-    return new Promise((resolve, reject) => {
-        // Validate required fields
-        if (!data.identifier || !data.section) {
-            return reject(new Error('Identifier and section are required'));
+// Parse metadata JSON helper
+function parseMetadata(rows) {
+    rows.forEach(row => {
+        try {
+            row.metadata = row.metadata ? JSON.parse(row.metadata) : {};
+        } catch (e) {
+            row.metadata = {};
         }
-        
-        // Check if identifier already exists
-        db.get('SELECT id FROM content_blocks WHERE identifier = ?', [data.identifier], (err, row) => {
-            if (err) return reject(err);
-            
-            if (row) {
-                return reject(new Error('Content identifier already exists'));
-            }
-            
-            // Convert metadata to JSON string if provided
-            let metadataStr = null;
-            if (data.metadata) {
-                try {
-                    metadataStr = JSON.stringify(data.metadata);
-                } catch (e) {
-                    metadataStr = '{}';
-                }
-            }
-            
-            db.run(
-                `INSERT INTO content_blocks (
-                    identifier, title, content, content_type, section, order_index, 
-                    is_active, metadata, created_at, modified_at, created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?)`,
-                [
-                    data.identifier,
-                    data.title || data.identifier,
-                    data.content || '',
-                    data.content_type || 'text',
-                    data.section,
-                    data.order_index || 0,
-                    data.is_active === false ? 0 : 1,
-                    metadataStr,
-                    userId || null
-                ],
-                function(err) {
-                    if (err) return reject(err);
-                    
-                    getContentById(this.lastID)
-                        .then(resolve)
-                        .catch(reject);
-                }
-            );
-        });
     });
+    return rows;
 }
 
-// Delete content block
-function deleteContent(id) {
-    return new Promise((resolve, reject) => {
-        getContentById(id)
-            .then(() => {
-                db.run('DELETE FROM content_blocks WHERE id = ?', [id], function(err) {
-                    if (err) return reject(err);
-                    
-                    resolve({ success: true, deleted: this.changes > 0 });
-                });
-            })
-            .catch(reject);
-    });
+// Get all content blocks - REWRITE FOR POSTGRES
+async function getAllContent() {
+    try {
+        const result = await query('SELECT * FROM content_blocks ORDER BY section, order_index');
+        return parseMetadata(result.rows);
+    } catch (err) {
+        console.error('Error getting all content:', err);
+        throw err;
+    }
 }
 
-// Get content sections (distinct section names)
-function getContentSections() {
-    return new Promise((resolve, reject) => {
-        db.all('SELECT DISTINCT section FROM content_blocks ORDER BY section', (err, rows) => {
-            if (err) return reject(err);
-            
-            const sections = rows.map(row => row.section);
-            resolve(sections);
-        });
-    });
-}
-
-// Get public content for the website
-function getPublicContent() {
-    return new Promise((resolve, reject) => {
-        db.all(
-            'SELECT identifier, content, content_type, section, metadata FROM content_blocks WHERE is_active = 1 ORDER BY section, order_index',
-            (err, rows) => {
-                if (err) return reject(err);
-                
-                // Parse metadata JSON
-                rows.forEach(row => {
-                    try {
-                        if (row.metadata) {
-                            row.metadata = JSON.parse(row.metadata);
-                        } else {
-                            row.metadata = {};
-                        }
-                    } catch (e) {
-                        row.metadata = {};
-                    }
-                });
-                
-                // Convert to an object keyed by identifier for easier access
-                const contentObj = {};
-                rows.forEach(row => {
-                    contentObj[row.identifier] = {
-                        content: row.content,
-                        type: row.content_type,
-                        section: row.section,
-                        metadata: row.metadata
-                    };
-                });
-                
-                // Also group content by section
-                const contentBySection = {};
-                rows.forEach(row => {
-                    if (!contentBySection[row.section]) {
-                        contentBySection[row.section] = [];
-                    }
-                    contentBySection[row.section].push({
-                        identifier: row.identifier,
-                        content: row.content,
-                        type: row.content_type,
-                        metadata: row.metadata
-                    });
-                });
-                
-                resolve({
-                    content: contentObj,
-                    sections: contentBySection
-                });
-            }
+// Get content blocks by section - REWRITE FOR POSTGRES
+async function getContentBySection(section) {
+    try {
+        const result = await query(
+            'SELECT * FROM content_blocks WHERE section = $1 ORDER BY order_index',
+            [section]
         );
-    });
+        return parseMetadata(result.rows);
+    } catch (err) {
+        console.error(`Error getting content for section '${section}':`, err);
+        throw err;
+    }
+}
+
+// Get a single content block by ID - REWRITE FOR POSTGRES
+async function getContentById(id) {
+    try {
+        const result = await query('SELECT * FROM content_blocks WHERE id = $1', [id]);
+        if (result.rows.length === 0) {
+            throw new Error('Content block not found');
+        }
+        return parseMetadata(result.rows)[0]; // Parse and return the single row
+    } catch (err) {
+        console.error(`Error getting content by ID ${id}:`, err);
+        throw err;
+    }
+}
+
+// Get a single content block by identifier - REWRITE FOR POSTGRES
+async function getContentByIdentifier(identifier) {
+    try {
+        const result = await query('SELECT * FROM content_blocks WHERE identifier = $1', [identifier]);
+        if (result.rows.length === 0) {
+            throw new Error('Content block not found');
+        }
+        return parseMetadata(result.rows)[0]; // Parse and return the single row
+    } catch (err) {
+        console.error(`Error getting content by identifier '${identifier}':`, err);
+        throw err;
+    }
+}
+
+// Update content block - REWRITE FOR POSTGRES
+async function updateContent(id, data, userId) { // userId might be for a modified_by field now?
+    try {
+        const setClauses = [];
+        const params = [id]; // For WHERE id = $N
+        let paramIndex = 2; // Start after id
+
+        const allowedFields = ['title', 'content', 'content_type', 'section', 'order_index', 'is_active', 'metadata'];
+
+        for (const key of allowedFields) {
+            if (data[key] !== undefined) {
+                let value = data[key];
+                if (key === 'metadata') {
+                    try {
+                        value = JSON.stringify(value || {});
+                    } catch (e) {
+                        value = '{}';
+                    }
+                } else if (key === 'is_active') {
+                    value = value === true || value === 1 || value === 'true'; // Ensure boolean
+                }
+                setClauses.push(`${key} = $${paramIndex++}`);
+                params.push(value);
+            }
+        }
+
+        if (setClauses.length === 0) {
+            // No fields to update, return existing content
+            return getContentById(id);
+        }
+
+        // Add updated_at timestamp
+        setClauses.push(`updated_at = CURRENT_TIMESTAMP`);
+        // Consider adding modified_by = $N if userId is meant for tracking changes
+
+        const sql = `UPDATE content_blocks SET ${setClauses.join(', ')} WHERE id = $1 RETURNING *`;
+        const result = await query(sql, params);
+
+        if (result.rows.length === 0) {
+             throw new Error('Content block not found for update');
+        }
+        return parseMetadata(result.rows)[0]; // Parse and return updated row
+
+    } catch (err) {
+        console.error(`Error updating content ${id}:`, err);
+        throw err;
+    }
+}
+
+// Create new content block - REWRITE FOR POSTGRES
+async function createContent(data, userId) { // userId likely for created_by
+    try {
+        if (!data.identifier || !data.section) {
+            throw new Error('Identifier and section are required');
+        }
+
+        let metadataValue = '{}';
+        if (data.metadata) {
+            try {
+                metadataValue = JSON.stringify(data.metadata);
+            } catch (e) { /* Ignore error, use default */ }
+        }
+
+        const sql = `
+            INSERT INTO content_blocks (
+                identifier, title, content, content_type, section, order_index,
+                is_active, metadata, created_at, updated_at
+                -- created_by column missing in original schema, add if needed
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            RETURNING *
+        `;
+        const params = [
+            data.identifier,
+            data.title || data.identifier,
+            data.content || '',
+            data.content_type || 'text',
+            data.section,
+            data.order_index || 0,
+            data.is_active !== false, // Default to true
+            metadataValue,
+            // userId || null // Add if created_by exists
+        ];
+
+        const result = await query(sql, params);
+        return parseMetadata(result.rows)[0]; // Parse and return created row
+
+    } catch (err) {
+        console.error('Error creating content:', err);
+        if (err.message?.includes('duplicate key value violates unique constraint "content_blocks_identifier_key"')) {
+             throw new Error('Content identifier already exists');
+        }
+        throw err;
+    }
+}
+
+// Delete content block - REWRITE FOR POSTGRES
+async function deleteContent(id) {
+    try {
+        const result = await query('DELETE FROM content_blocks WHERE id = $1', [id]);
+        if (result.rowCount === 0) {
+            throw new Error('Content block not found for deletion');
+        }
+        return { message: 'Content block deleted successfully', deleted: true };
+    } catch (err) {
+        console.error(`Error deleting content ${id}:`, err);
+        throw err;
+    }
+}
+
+// Get content sections (distinct section names) - REWRITE FOR POSTGRES
+async function getContentSections() {
+    try {
+        const result = await query('SELECT DISTINCT section FROM content_blocks ORDER BY section');
+        return result.rows.map(row => row.section);
+    } catch (err) {
+        console.error('Error getting content sections:', err);
+        throw err;
+    }
+}
+
+// Get public content for the website - REWRITE FOR POSTGRES
+async function getPublicContent() {
+    try {
+        const result = await query(
+            'SELECT identifier, content, content_type, section, metadata FROM content_blocks WHERE is_active = true ORDER BY section, order_index'
+        );
+        const rows = parseMetadata(result.rows);
+
+        // Convert to an object keyed by identifier
+        const contentObj = {};
+        rows.forEach(row => {
+            contentObj[row.identifier] = {
+                content: row.content,
+                type: row.content_type,
+                section: row.section,
+                metadata: row.metadata
+            };
+        });
+
+        // Also group content by section
+        const contentBySection = {};
+        rows.forEach(row => {
+            if (!contentBySection[row.section]) {
+                contentBySection[row.section] = [];
+            }
+            contentBySection[row.section].push({
+                identifier: row.identifier,
+                content: row.content,
+                type: row.content_type,
+                metadata: row.metadata
+            });
+        });
+
+        return {
+            content: contentObj,
+            sections: contentBySection
+        };
+
+    } catch (err) {
+        console.error('Error getting public content:', err);
+        throw err;
+    }
 }
 
 module.exports = {

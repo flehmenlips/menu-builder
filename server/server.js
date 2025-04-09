@@ -11,7 +11,6 @@ const auth = require('./auth');
 const admin = require('./admin');
 const content = require('./content');
 const jwt = require('jsonwebtoken');
-const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcrypt');
 require('dotenv').config();
 
