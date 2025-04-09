@@ -27,26 +27,45 @@ let globalSettingsInitialized = false; // Flag for new section
 
 // Main admin module
 document.addEventListener('DOMContentLoaded', async () => { // Make listener async
-    // --- Restore original code --- 
     console.log('[DOMContentLoaded] Starting admin auth check...');
+    alert('[DOMContentLoaded] Starting admin auth check...'); // Alert 1
     const loggedInUser = await checkAdminAuth(); // Await the result
 
     if (loggedInUser) {
-        // User is authenticated and is an admin
         console.log("*****************************************************");
         console.log("*** [DOMContentLoaded] checkAdminAuth SUCCEEDED! User:", loggedInUser);
         console.log("*****************************************************");
         
-        displayUserInfo(loggedInUser); 
-        setupEventListeners(loggedInUser); 
-        // const hash = window.location.hash.substring(1);
-        // navigateToSection(hash || 'dashboard', loggedInUser); // <-- COMMENTED OUT TO ISOLATE
-        console.log("[DOMContentLoaded] navigateToSection call SKIPPED for testing."); // Log that we skipped it
+        alert("*****************************************************");
+        alert("*** [DOMContentLoaded] checkAdminAuth SUCCEEDED! Proceeding..."); // Alert 2 (after SUCCESS alert from checkAdminAuth)
+        
+        try {
+            alert("[DOMContentLoaded] BEFORE displayUserInfo"); // Alert 3
+            displayUserInfo(loggedInUser); 
+            alert("[DOMContentLoaded] AFTER displayUserInfo"); // Alert 4
+        } catch (e) { alert(`ERROR in displayUserInfo: ${e}`); console.error("ERROR in displayUserInfo:", e); }
+        
+        try {
+            alert("[DOMContentLoaded] BEFORE setupEventListeners"); // Alert 5
+            setupEventListeners(loggedInUser); 
+            alert("[DOMContentLoaded] AFTER setupEventListeners"); // Alert 6
+        } catch (e) { alert(`ERROR in setupEventListeners: ${e}`); console.error("ERROR in setupEventListeners:", e); }
+        
+        try {
+            alert("[DOMContentLoaded] BEFORE navigateToSection"); // Alert 7
+            const hash = window.location.hash.substring(1);
+            navigateToSection(hash || 'dashboard', loggedInUser); // Restore this call
+            alert("[DOMContentLoaded] AFTER navigateToSection"); // Alert 8
+        } catch (e) { alert(`ERROR in navigateToSection: ${e}`); console.error("ERROR in navigateToSection:", e); }
+        
+        alert("[DOMContentLoaded] End of successful block reached."); // Alert 9
+
     } else {
-        // checkAdminAuth handles redirects, but log just in case
         console.log("*****************************************************");
         console.log("*** [DOMContentLoaded] checkAdminAuth FAILED or user is not admin (returned null).");
         console.log("*****************************************************");
+        alert("*****************************************************");
+        alert("*** [DOMContentLoaded] checkAdminAuth FAILED or user is not admin (returned null)."); // Alert 10
     }
 });
 
