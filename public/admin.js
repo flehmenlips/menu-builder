@@ -165,8 +165,11 @@ function navigateToSection(section, user) { // Added user parameter
 
         // Initialize the section-specific JS, PASSING USER OBJECT
         console.log(`[navigateToSection] Initializing JS for section: "${section}"`);
+        
+        console.log(`[navigateToSection] BEFORE switch statement for section: "${section}"`); // Corrected syntax
         switch (section) {
             case 'dashboard':
+                console.log(`[navigateToSection] INSIDE case 'dashboard'. Calling initDashboard.`); // Corrected syntax
                 initDashboard(user);
                 break;
             case 'users':
