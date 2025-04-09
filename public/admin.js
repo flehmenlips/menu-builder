@@ -55,42 +55,44 @@ document.addEventListener('DOMContentLoaded', async () => { // Make listener asy
 
 // Pass user object for consistency
 function displayUserInfo(user) {
-    const userNameElement = document.getElementById('user-name-display');
-    const userEmailElement = document.getElementById('user-email-display'); // Assuming you might add email display
+    try { // <-- ADD try
+        const userNameElement = document.getElementById('user-name-display');
+        const userEmailElement = document.getElementById('user-email-display');
 
-    if (userNameElement) {
-        userNameElement.textContent = user.name || user.email; // Display name or email
-    }
-    // Add logic for userEmailElement if you have one
+        if (userNameElement) {
+            userNameElement.textContent = user.name || user.email; 
+        }
+        // Add logic for userEmailElement if you have one
+    } catch(e) { console.error("ERROR inside displayUserInfo:", e); } // <-- ADD catch
 }
 
 // Pass user object for consistency, especially if needed by listeners
 function setupEventListeners(user) {
-    // Sidebar navigation links
-    const navLinks = document.querySelectorAll('.sidebar-nav a');
-    navLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-            const targetSection = this.getAttribute('href').substring(1);
-            if (targetSection !== 'logout') { // Handle logout separately if needed
-                 e.preventDefault();
-                 window.location.hash = targetSection;
-                 // Pass user when navigating
-                 navigateToSection(targetSection, user);
-            } else {
-                // Handle logout click if necessary (logout function already exists)
-                 // e.g., document.getElementById('logout-btn')?.click();
-            }
+    try { // <-- ADD try
+        // Sidebar navigation links
+        const navLinks = document.querySelectorAll('.sidebar-nav a');
+        navLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                const targetSection = this.getAttribute('href').substring(1);
+                if (targetSection !== 'logout') { 
+                    e.preventDefault();
+                    window.location.hash = targetSection;
+                    navigateToSection(targetSection, user);
+                } else {
+                    // The actual logout button has its own listener now
+                }
+            });
         });
-    });
 
-    // Logout button
-    const logoutBtn = document.getElementById('logout-btn');
-    if (logoutBtn) {
-        // No need to pass user here as logout function reads localStorage anyway
-        logoutBtn.addEventListener('click', logout);
-    }
+        // Logout button
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            // Check if listener already exists? (might not be necessary)
+            logoutBtn.addEventListener('click', logout); // Use the globally defined logout function
+        }
 
-    // Add other event listeners as needed, passing `user` if required by their handlers
+        // Add other event listeners as needed, passing `user` if required
+    } catch(e) { console.error("ERROR inside setupEventListeners:", e); } // <-- ADD catch
 }
 
 // Moved logout function definition earlier to fix ReferenceError in setupEventListeners
