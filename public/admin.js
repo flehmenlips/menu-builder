@@ -219,7 +219,8 @@ function navigateToSection(section, user) { // Added user parameter
 
 // Initialize dashboard - ACCEPTS USER OBJECT
 function initDashboard(user) { // Added user parameter
-    console.log("[initDashboard] Function called."); // <-- ADD ENTRY LOG
+    alert("[initDashboard] FUNCTION ENTERED!"); // <-- ADD ALERT AS FIRST LINE
+    console.log("[initDashboard] Function called."); // Keep log as well
     // Fetch dashboard stats, PASSING USER OBJECT
     fetchDashboardStats(user);
 }
