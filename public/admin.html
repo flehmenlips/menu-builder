@@ -39,6 +39,7 @@
                     <li><a href="#plans" class="nav-link" data-section="plans">Subscription Plans</a></li>
                     <li><a href="#content" class="nav-link" data-section="content">Content</a></li>
                     <li><a href="#settings" class="nav-link" data-section="settings">Settings</a></li>
+                    <li><a href="#global-settings" class="nav-link super-admin-only" data-section="global-settings" style="display: none;">Global Settings</a></li>
                     <li><a href="/user.html">Back to User App</a></li>
                 </ul>
             </nav>
@@ -159,6 +160,30 @@
                         <button type="submit" class="btn-primary">Save Settings</button>
                     </form>
                 </section>
+
+                <!-- NEW: Global Settings Section (Super Admin Only) -->
+                <section id="global-settings-section" class="content-section super-admin-only" style="display: none;">
+                    <h2>Global Settings</h2>
+                    
+                    <div class="setting-group">
+                        <h3>Application Logo</h3>
+                        <div class="logo-upload-area">
+                            <div class="logo-preview">
+                                <img id="current-app-logo-preview" src="" alt="Current App Logo" style="max-width: 200px; max-height: 100px; display: block; margin-bottom: 10px;">
+                            </div>
+                            <div class="form-group">
+                                <label for="app-logo-input">Upload New Logo (Max 1MB, PNG/JPG/SVG):</label>
+                                <input type="file" id="app-logo-input" name="app_logo" accept=".png, .jpg, .jpeg, .svg">
+                            </div>
+                            <button type="button" id="upload-app-logo-btn" class="btn-primary">Upload Logo</button>
+                            <div id="app-logo-message" class="message" style="margin-top: 10px;"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Add other global settings groups here -->
+                    
+                </section>
+                
             </main>
         </div>
     </div>

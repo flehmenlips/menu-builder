@@ -23,6 +23,7 @@ let plansInitialized = false;
 let contentInitialized = false;
 let settingsInitialized = false;
 let appearanceInitialized = false;
+let globalSettingsInitialized = false; // Flag for new section
 
 // Main admin module
 document.addEventListener('DOMContentLoaded', function() {
@@ -54,6 +55,13 @@ document.addEventListener('DOMContentLoaded', function() {
         initDashboard();
         dashboardInitialized = true;
         initNavigation();
+
+        // Check user role and show/hide super admin elements
+        if (user.role === 'SUPER_ADMIN') {
+            document.querySelectorAll('.super-admin-only').forEach(el => {
+                el.style.display = ''; // Remove inline style to show elements
+            });
+        }
     } else {
         console.log('Initial state: Not logged in.');
         // Show login, hide others
@@ -131,6 +139,14 @@ function initLoginForm() {
             initDashboard();
             dashboardInitialized = true;
             initNavigation(); // Re-initialize nav to handle potential hash
+            
+            // Check user role and show/hide super admin elements
+            const loggedInUser = JSON.parse(localStorage.getItem('user'));
+            if (loggedInUser && loggedInUser.role === 'SUPER_ADMIN') {
+                document.querySelectorAll('.super-admin-only').forEach(el => {
+                    el.style.display = ''; // Remove inline style to show elements
+                });
+            }
             
             // Manually trigger the click for the default/hashed section
             const hash = window.location.hash.substring(1);
@@ -345,8 +361,19 @@ function showSetupMessage(message, type = 'info') {
 // Initialize navigation
 function initNavigation() {
     const navLinks = document.querySelectorAll('.nav-link');
+    const loggedInUser = JSON.parse(localStorage.getItem('user')); // Get user info
     
     navLinks.forEach(link => {
+        // --- START: Show/Hide Super Admin Link --- 
+        if (link.classList.contains('super-admin-only')) {
+            if (loggedInUser && loggedInUser.role === 'SUPER_ADMIN') {
+                 link.parentElement.style.display = ''; // Show the list item
+            } else {
+                 link.parentElement.style.display = 'none'; // Hide the list item
+            }
+        }
+        // --- END: Show/Hide Super Admin Link --- 
+
         link.addEventListener('click', function(e) {
             e.preventDefault();
             
@@ -406,6 +433,12 @@ function initNavigation() {
                     if (!appearanceInitialized) {
                         initAppearance();
                         appearanceInitialized = true;
+                    }
+                    break;
+                case 'global-settings': // New case
+                    if (!globalSettingsInitialized && loggedInUser?.role === 'SUPER_ADMIN') {
+                        initGlobalSettings();
+                        globalSettingsInitialized = true;
                     }
                     break;
             }
@@ -2227,4 +2260,116 @@ function saveAppearanceSettings() {
         console.error('Error saving appearance settings:', error);
         alert('Error saving appearance settings: ' + error.message);
     });
-} 
+}
+
+// --- START: Global Settings Section Logic --- 
+
+function initGlobalSettings() {
+    console.log('Initializing Global Settings...');
+    fetchCurrentAppSettings(); // Fetch logo initially
+    
+    const uploadBtn = document.getElementById('upload-app-logo-btn');
+    const fileInput = document.getElementById('app-logo-input');
+    const messageDiv = document.getElementById('app-logo-message');
+
+    if (uploadBtn && fileInput) {
+        uploadBtn.addEventListener('click', async () => {
+            const file = fileInput.files[0];
+            if (!file) {
+                showMessage(messageDiv, 'Please select a logo file first.', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('app_logo', file); // Match the field name expected by multer
+
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (!user || !user.token) {
+                showMessage(messageDiv, 'Authentication error. Please log in again.', 'error');
+                return;
+            }
+
+            try {
+                showMessage(messageDiv, 'Uploading logo...', 'info');
+                uploadBtn.disabled = true;
+
+                const response = await fetch(`${API_BASE_URL}/admin/settings/app-logo`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${user.token}`
+                        // Content-Type is set automatically for FormData
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Upload failed');
+                }
+
+                showMessage(messageDiv, 'Logo updated successfully!', 'success');
+                // Update preview
+                const previewImg = document.getElementById('current-app-logo-preview');
+                if (previewImg) {
+                    // Add a cache-busting query string
+                    previewImg.src = data.logoPath + '?t=' + new Date().getTime(); 
+                }
+                fileInput.value = ''; // Clear file input
+
+            } catch (error) {
+                console.error('Error uploading app logo:', error);
+                showMessage(messageDiv, `Error: ${error.message}`, 'error');
+            } finally {
+                 uploadBtn.disabled = false;
+            }
+        });
+    } else {
+        console.error('Could not find logo upload button or file input.');
+    }
+}
+
+// Fetch current app settings (like logo path)
+async function fetchCurrentAppSettings() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/settings/public`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch app settings');
+        }
+        const settings = await response.json();
+        
+        const previewImg = document.getElementById('current-app-logo-preview');
+        if (previewImg) {
+            if (settings.app_logo_path) {
+                previewImg.src = settings.app_logo_path;
+                previewImg.style.display = 'block'; 
+            } else {
+                previewImg.src = ''; // Clear src if no logo set
+                 previewImg.alt = 'No logo set';
+                 previewImg.style.display = 'none'; // Hide if no logo
+            }
+        }
+        // Update other global settings display if needed
+
+    } catch (error) {
+        console.error('Error fetching current app settings:', error);
+        const messageDiv = document.getElementById('app-logo-message');
+        if (messageDiv) {
+            showMessage(messageDiv, 'Could not load current app settings.', 'error');
+        }
+    }
+}
+
+// Generic message function (if not already defined elsewhere)
+function showMessage(element, message, type = 'info') {
+    if (!element) return;
+    element.textContent = message;
+    element.className = `message ${type}`;
+    element.style.display = 'block';
+    // Optional: Auto-hide after a few seconds
+    // setTimeout(() => { element.style.display = 'none'; }, 5000);
+}
+
+// --- END: Global Settings Section Logic --- 
+
+// Initialize appearance section 
