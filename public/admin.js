@@ -27,20 +27,26 @@ let globalSettingsInitialized = false; // Flag for new section
 
 // Main admin module
 document.addEventListener('DOMContentLoaded', async () => { // Make listener async
+    console.log('[DOMContentLoaded] Starting admin auth check...');
     const loggedInUser = await checkAdminAuth(); // Await the result
 
     if (loggedInUser) {
         // User is authenticated and is an admin
-        console.log("Admin authenticated, proceeding with initialization.", loggedInUser);
-        displayUserInfo(loggedInUser);
-        setupEventListeners(loggedInUser);
-
-        // Determine the current section and initialize it
-        const hash = window.location.hash.substring(1);
-        navigateToSection(hash || 'dashboard', loggedInUser);
+        // Temporarily ONLY log success, do not initialize UI yet
+        console.log("*****************************************************");
+        console.log("*** [DOMContentLoaded] checkAdminAuth SUCCEEDED! User:", loggedInUser);
+        console.log("*** Page should NOT redirect now.");
+        console.log("*****************************************************");
+        
+        // displayUserInfo(loggedInUser); // <-- Temporarily Commented Out
+        // setupEventListeners(loggedInUser); // <-- Temporarily Commented Out
+        // const hash = window.location.hash.substring(1);
+        // navigateToSection(hash || 'dashboard', loggedInUser); // <-- Temporarily Commented Out
     } else {
         // checkAdminAuth handles redirects, but log just in case
-        console.log("Admin authentication failed or user is not admin.");
+        console.log("*****************************************************");
+        console.log("*** [DOMContentLoaded] checkAdminAuth FAILED or user is not admin (returned null).");
+        console.log("*****************************************************");
     }
 });
 
