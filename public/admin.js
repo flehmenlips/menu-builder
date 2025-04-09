@@ -218,25 +218,14 @@ function initDashboard(user) { // Added user parameter
 
 // Fetch dashboard stats - ACCEPTS USER OBJECT
 function fetchDashboardStats(user) { // Added user parameter
-    // const user = JSON.parse(localStorage.getItem('user') || 'null'); // REMOVED - Use passed user
-    if (!user || !user.token) { // Check passed user object
-        console.error('fetchDashboardStats: Auth token not provided via user object.'); // Updated error message
-        // Optionally display error on dashboard elements
-        const totalUsers = document.getElementById('total-users');
-        if(totalUsers) totalUsers.textContent = 'Error';
-        const proUsers = document.getElementById('pro-users');
-        if(proUsers) proUsers.textContent = 'Error';
-        const newUsers = document.getElementById('new-users');
-        if(newUsers) newUsers.textContent = 'Error';
-        const totalMenus = document.getElementById('total-menus');
-        if(totalMenus) totalMenus.textContent = 'Error';
+    if (!user || !user.token) { 
+        console.error('fetchDashboardStats: Auth token not provided via user object.'); 
         return;
     }
 
-    // Debug log to confirm token presence
-    console.log("fetchDashboardStats: Using token from passed user object.");
+    console.log("[fetchDashboardStats] Starting fetch for user and menu stats.");
 
-    // Fetch total users using the passed user token
+    // Fetch total users
     fetch(`${API_BASE_URL}/admin/stats/users`, {
         headers: {
             'Authorization': `Bearer ${user.token}`, // Use passed user token
@@ -245,27 +234,26 @@ function fetchDashboardStats(user) { // Added user parameter
         credentials: 'include' // Keep credentials if needed for session cookies alongside Bearer
     })
     .then(response => {
-        if (response.status === 401) {
-             console.error('fetchDashboardStats (Users): Unauthorized (401). Token may be invalid or expired.');
-             // Potentially trigger logout or redirect
-        }
-        if (!response.ok) {
-            throw new Error(`HTTP error ${response.status}`);
-        }
+        console.log("[fetchDashboardStats] Users API response status:", response.status);
+        if (!response.ok) throw new Error(`Users API Error: ${response.status}`);
         return response.json();
     })
     .then(data => {
+        console.log("[fetchDashboardStats] Users API data:", data);
         if (data.error) throw new Error(data.error);
         const totalUsers = document.getElementById('total-users');
         const proUsers = document.getElementById('pro-users');
         const newUsers = document.getElementById('new-users');
+        
+        console.log(`[fetchDashboardStats] Found elements - totalUsers: ${!!totalUsers}, proUsers: ${!!proUsers}, newUsers: ${!!newUsers}`);
 
         if (totalUsers) totalUsers.textContent = data.count || 0;
         if (proUsers) proUsers.textContent = data.proCount || 0;
         if (newUsers) newUsers.textContent = data.newThisMonth || 0;
+        console.log("[fetchDashboardStats] Updated user stats elements.");
     })
     .catch(error => {
-        console.error('Error fetching user stats:', error);
+        console.error('[fetchDashboardStats] Error fetching/processing user stats:', error);
         const totalUsers = document.getElementById('total-users');
         const proUsers = document.getElementById('pro-users');
         const newUsers = document.getElementById('new-users');
@@ -284,22 +272,20 @@ function fetchDashboardStats(user) { // Added user parameter
         credentials: 'include' // Keep credentials if needed
     })
     .then(response => {
-         if (response.status === 401) {
-             console.error('fetchDashboardStats (Menus): Unauthorized (401). Token may be invalid or expired.');
-             // Potentially trigger logout or redirect
-         }
-        if (!response.ok) {
-            throw new Error(`HTTP error ${response.status}`);
-        }
+        console.log("[fetchDashboardStats] Menus API response status:", response.status);
+        if (!response.ok) throw new Error(`Menus API Error: ${response.status}`);
         return response.json();
     })
     .then(data => {
+        console.log("[fetchDashboardStats] Menus API data:", data);
         if (data.error) throw new Error(data.error);
         const totalMenus = document.getElementById('total-menus');
+        console.log(`[fetchDashboardStats] Found element - totalMenus: ${!!totalMenus}`);
         if (totalMenus) totalMenus.textContent = data.count || 0;
+        console.log("[fetchDashboardStats] Updated menu stats element.");
     })
     .catch(error => {
-        console.error('Error fetching menu stats:', error);
+        console.error('[fetchDashboardStats] Error fetching/processing menu stats:', error);
         const totalMenus = document.getElementById('total-menus');
         if (totalMenus) totalMenus.textContent = 'Error';
     });
