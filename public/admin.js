@@ -41,10 +41,19 @@ document.addEventListener('DOMContentLoaded', async () => { // Make listener asy
              setupEventListeners(loggedInUser); 
         } catch (e) { console.error("ERROR in setupEventListeners:", e); } 
         
+        // Bypass navigateToSection for now, call initDashboard directly
+        console.log("[DOMContentLoaded] Attempting direct call to initDashboard...");
+        try {
+             initDashboard(loggedInUser);
+        } catch (e) { console.error("ERROR calling initDashboard directly:", e); }
+        console.log("[DOMContentLoaded] Direct call to initDashboard finished (or failed).");
+
+        /* --- Comment out navigateToSection call --- 
         try {
             const hash = window.location.hash.substring(1);
             navigateToSection(hash || 'dashboard', loggedInUser); 
         } catch (e) { console.error("ERROR in navigateToSection:", e); } 
+        --- End comment out --- */
 
     } else {
         console.log("*** [DOMContentLoaded] checkAdminAuth FAILED or user is not admin (returned null).");
