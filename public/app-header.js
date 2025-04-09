@@ -130,96 +130,83 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update user info in header
     function updateUserInfo(user) {
         console.log('[updateUserInfo] Received user:', user); // DEBUGGING
-        // Check if running in shadow DOM context (Web Component)
-        const root = this.shadowRoot || document; // Use shadowRoot if available, else document
+        const root = this.shadowRoot || document; 
 
-        const userNameElement = root.getElementById('user-name') || root.querySelector('.user-name'); // Try ID then class
-        const accountMenu = root.getElementById('account-menu') || root.querySelector('.user-dropdown');
-        const loginButton = root.getElementById('login-button') || root.querySelector('.login-button'); // Try ID then class
-        const dropdownUl = root.querySelector('.user-dropdown ul'); // Target the list within the dropdown
-        console.log('[updateUserInfo] Found dropdownUl:', dropdownUl); // DEBUGGING
+        const userNameElement = root.querySelector('.user-name'); 
+        const accountMenu = root.querySelector('.user-dropdown'); // The main dropdown container
+        const loginButton = root.querySelector('.login-button');
+        const dropdownMenuDiv = root.querySelector('.user-dropdown-menu'); // The div containing the links
+        console.log('[updateUserInfo] Found dropdownMenuDiv:', dropdownMenuDiv); // DEBUGGING
 
         // --- START: Remove existing dynamic items --- 
-        const existingAdminLi = root.querySelector('#admin-link-li');
-        const existingAdminIndicatorLi = root.querySelector('#admin-indicator-li');
-        if (existingAdminLi) {
-            const precedingSeparator = existingAdminLi.previousElementSibling;
-            if (precedingSeparator && precedingSeparator.tagName === 'LI' && precedingSeparator.querySelector('hr')) {
-                precedingSeparator.remove();
-            }
-            existingAdminLi.remove();
-        }
-        if (existingAdminIndicatorLi) {
-             existingAdminIndicatorLi.remove();
-        }
+        const existingAdminLink = root.querySelector('#admin-link-a');
+        const existingAdminIndicator = root.querySelector('#admin-indicator');
+        const existingAdminSeparator = root.querySelector('#admin-separator');
+        
+        if (existingAdminLink) existingAdminLink.remove();
+        if (existingAdminIndicator) existingAdminIndicator.remove();
+        if (existingAdminSeparator) existingAdminSeparator.remove();
         // --- END: Remove existing dynamic items --- 
 
         if (user) {
             if (userNameElement) userNameElement.textContent = user.name || user.email || 'My Account';
-            if (accountMenu) accountMenu.style.display = 'block';
+            if (accountMenu) accountMenu.style.display = 'block'; // Show dropdown toggle area
             if (loginButton) loginButton.style.display = 'none';
 
-            // Update dropdown links (Consider simplifying if multiple links go to same place)
-            const profileLink = root.getElementById('profile-link');
-            // const settingsLink = root.getElementById('settings-link'); // Removed, points to profile
-            // const companyLink = root.getElementById('company-link'); // Removed, points to profile
-            const subscriptionLink = root.getElementById('subscription-link');
-            const logoutLi = root.querySelector('#logout-link')?.closest('li'); // Find logout li
-            console.log('[updateUserInfo] Found logoutLi:', logoutLi); // DEBUGGING
+            // Update static links if necessary (href might not change)
+            const profileLink = root.querySelector('#profile-link');
+            const subscriptionLink = root.querySelector('#subscription-link');
+            const logoutLink = root.querySelector('#logout-btn'); // Use correct ID
+            console.log('[updateUserInfo] Found logoutLink (logout-btn):', logoutLink); // DEBUGGING
 
-            if(profileLink) profileLink.href = 'user.html#profile';
-            // if(settingsLink) settingsLink.href = 'user.html#profile'; 
-            // if(companyLink) companyLink.href = 'user.html#profile';
+            if(profileLink) profileLink.href = 'user.html#profile'; 
             if(subscriptionLink) subscriptionLink.href = 'user.html#billing';
 
-            // Determine if user is an admin type
             const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'TENANT_ADMIN' || user.is_admin === true;
             console.log(`[updateUserInfo] isAdmin check based on role ('${user.role}') or is_admin ('${user.is_admin}'):`, isAdmin); // DEBUGGING
 
-            if (isAdmin && dropdownUl) {
+            if (isAdmin && dropdownMenuDiv) { // Check dropdownMenuDiv now
                 // --- START: Add Admin/Super Admin Indicator --- 
-                const indicatorLi = document.createElement('li');
-                indicatorLi.id = 'admin-indicator-li';
-                indicatorLi.textContent = user.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin';
-                indicatorLi.style.padding = '8px 16px';
-                indicatorLi.style.color = '#6c757d'; // Bootstrap secondary color
-                indicatorLi.style.fontSize = '0.875em';
-                indicatorLi.style.textAlign = 'center';
-                indicatorLi.style.borderBottom = '1px solid #eee'; // Separator below indicator
+                const indicatorDiv = document.createElement('div'); // Use div
+                indicatorDiv.id = 'admin-indicator';
+                indicatorDiv.textContent = user.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin';
+                // Simple styling, adjust as needed
+                indicatorDiv.style.padding = '4px 16px 8px 16px'; 
+                indicatorDiv.style.color = '#6c757d'; 
+                indicatorDiv.style.fontSize = '0.8em';
+                indicatorDiv.style.textAlign = 'center';
+                indicatorDiv.style.borderBottom = '1px solid #eee';
 
-                // Insert indicator at the top of the dropdown list
-                if (dropdownUl.firstChild) {
-                    dropdownUl.insertBefore(indicatorLi, dropdownUl.firstChild);
-                } else {
-                    dropdownUl.appendChild(indicatorLi);
-                }
+                // Insert indicator at the top
+                dropdownMenuDiv.insertBefore(indicatorDiv, dropdownMenuDiv.firstChild);
                 // --- END: Add Admin/Super Admin Indicator --- 
 
                 // --- START: Add Admin Panel Link --- 
-                const adminLi = document.createElement('li');
-                adminLi.id = 'admin-link-li'; // ID for easy removal
-                const adminLink = document.createElement('a');
+                const adminLink = document.createElement('a'); // Use <a>
+                adminLink.id = 'admin-link-a'; 
                 adminLink.href = '/admin.html';
                 adminLink.textContent = 'Admin Panel';
-                adminLink.id = 'admin-panel-link';
-                adminLi.appendChild(adminLink);
+                adminLink.className = 'dropdown-item'; // Assuming you have styling for this class
 
-                const separatorLi = document.createElement('li');
-                separatorLi.style.padding = '0'; 
-                separatorLi.innerHTML = '<hr style="margin: 4px 0; border-color: #eee;">';
+                const separatorDiv = document.createElement('div'); // Use div for separator
+                separatorDiv.id = 'admin-separator';
+                // Use a standard divider class if available (like Bootstrap's dropdown-divider) or simple hr
+                separatorDiv.innerHTML = '<hr style="margin: 4px 0; border-color: #eee;">'; 
+                // Alternatively: separatorDiv.className = 'dropdown-divider'; 
 
-                if (logoutLi) {
-                    dropdownUl.insertBefore(separatorLi, logoutLi);
-                    dropdownUl.insertBefore(adminLi, logoutLi);
+                if (logoutLink) {
+                    dropdownMenuDiv.insertBefore(separatorDiv, logoutLink);
+                    dropdownMenuDiv.insertBefore(adminLink, logoutLink);
                 } else {
-                    dropdownUl.appendChild(separatorLi);
-                    dropdownUl.appendChild(adminLi);
+                    // Fallback if logout link isn't found
+                    dropdownMenuDiv.appendChild(separatorDiv);
+                    dropdownMenuDiv.appendChild(adminLink);
                 }
                  // --- END: Add Admin Panel Link --- 
             }
 
         } else {
-            // Handle logged-out state (admin items are already removed above)
+            // Handle logged-out state
             if (userNameElement) userNameElement.textContent = '';
             if (accountMenu) accountMenu.style.display = 'none';
             if (loginButton) loginButton.style.display = 'inline-block';
