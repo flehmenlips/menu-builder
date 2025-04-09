@@ -135,6 +135,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const userNameElement = root.getElementById('user-name') || root.querySelector('.user-name'); // Try ID then class
         const accountMenu = root.getElementById('account-menu') || root.querySelector('.user-dropdown');
         const loginButton = root.getElementById('login-button') || root.querySelector('.login-button'); // Try ID then class
+        const dropdownUl = root.querySelector('.user-dropdown ul'); // Target the list within the dropdown
+
+        // --- START: Remove existing admin link if present --- 
+        const existingAdminLi = root.querySelector('#admin-link-li');
+        if (existingAdminLi) {
+            // Also remove the separator before it if it exists
+            const precedingSeparator = existingAdminLi.previousElementSibling;
+            if (precedingSeparator && precedingSeparator.tagName === 'LI' && precedingSeparator.querySelector('hr')) {
+                precedingSeparator.remove();
+            }
+            existingAdminLi.remove();
+        }
+        // --- END: Remove existing admin link --- 
 
         if (user) {
             if (userNameElement) userNameElement.textContent = user.name || user.email || 'My Account';
@@ -146,13 +159,43 @@ document.addEventListener('DOMContentLoaded', function() {
             const settingsLink = root.getElementById('settings-link');
             const companyLink = root.getElementById('company-link');
             const subscriptionLink = root.getElementById('subscription-link');
+            const logoutLi = root.querySelector('#logout-link')?.closest('li'); // Find logout li
 
             if(profileLink) profileLink.href = 'user.html#profile';
             if(settingsLink) settingsLink.href = 'user.html#profile'; 
             if(companyLink) companyLink.href = 'user.html#profile';
             if(subscriptionLink) subscriptionLink.href = 'user.html#billing';
 
+            // --- START: Add admin link if user is admin --- 
+            if (user.is_admin === true && dropdownUl) {
+                // Create the list item and link
+                const adminLi = document.createElement('li');
+                adminLi.id = 'admin-link-li'; // ID for easy removal
+                const adminLink = document.createElement('a');
+                adminLink.href = '/admin.html';
+                adminLink.textContent = 'Admin Panel';
+                adminLink.id = 'admin-panel-link';
+                adminLi.appendChild(adminLink);
+
+                // Create a separator
+                const separatorLi = document.createElement('li');
+                separatorLi.style.padding = '0'; // Remove padding for hr
+                separatorLi.innerHTML = '<hr style="margin: 4px 0; border-color: #eee;">';
+
+                // Insert before the logout link, or append if logout link isn't found
+                if (logoutLi) {
+                    dropdownUl.insertBefore(separatorLi, logoutLi);
+                    dropdownUl.insertBefore(adminLi, logoutLi);
+                } else {
+                    // Fallback if logout link isn't in an li or not found
+                    dropdownUl.appendChild(separatorLi);
+                    dropdownUl.appendChild(adminLi);
+                }
+            }
+            // --- END: Add admin link --- 
+
         } else {
+            // Handle logged-out state (admin link is already removed above)
             if (userNameElement) userNameElement.textContent = '';
             if (accountMenu) accountMenu.style.display = 'none';
             if (loginButton) loginButton.style.display = 'inline-block';
