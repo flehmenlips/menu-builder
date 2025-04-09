@@ -484,7 +484,8 @@ app.post('/api/auth/login', async (req, res) => {
                 id: result.userId,         
                 name: result.name,     // Use result.name
                 email: result.email,    // Use result.email
-                is_admin: result.is_admin // Use result.is_admin
+                is_admin: result.is_admin, // Use result.is_admin
+                token: result.token 
             }
         });
     } catch (error) {
