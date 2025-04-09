@@ -144,10 +144,9 @@ function navigateToSection(section, user) {
         activeSection.style.display = 'block'; 
 
         // Update active link in sidebar
-        const navLinks = document.querySelectorAll('.sidebar-nav a'); // Use correct selector
+        const navLinks = document.querySelectorAll('.sidebar-nav a');
         navLinks.forEach(link => {
             link.classList.remove('active');
-            // Make sure comparison includes the hash
             if (link.getAttribute('href') === `#${section}`) { 
                 link.classList.add('active');
             }
@@ -155,38 +154,7 @@ function navigateToSection(section, user) {
 
         // Initialize the section-specific JS, PASSING USER OBJECT
         // Restore passing user to all init functions
-        switch (section) {
-            case 'dashboard':
-                console.log(`[navigateToSection] INSIDE case 'dashboard'.`); 
-                alert("[navigateToSection] Reached Dashboard Case - Bypassing initDashboard call."); // <-- TEST ALERT
-                // initDashboard(user); // Keep commented for this test
-                break;
-            case 'users':
-                initUsers(user); // Restore user param
-                break;
-            case 'subscription-plans':
-                 initSubscriptionPlans(user); // Restore user param
-                 break;
-            case 'content':
-                 initContentManagement(user); // Restore user param
-                 break;
-            case 'settings': // Combine settings logic
-                 initSettings(user); // Restore user param
-                 break;
-             case 'global-settings': // Specific handling for global settings
-                 initGlobalSettings(user); // Ensure this is called correctly for #global-settings
-                 break;
-             case 'menu-designs':
-                 initMenuDesigns(user); // Restore user param
-                 break;
-             default:
-                 console.warn(`[navigateToSection] Unknown section for JS init: ${section}`);
-                 break;
-        }
-    } else {
-        console.error(`[navigateToSection] Section element with ID "${section}" NOT FOUND.`); 
-    }
-}
+
 
 // ... existing code ...
 
