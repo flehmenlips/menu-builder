@@ -157,7 +157,9 @@ function navigateToSection(section, user) {
         // Restore passing user to all init functions
         switch (section) {
             case 'dashboard':
-                initDashboard(user);
+                console.log(`[navigateToSection] INSIDE case 'dashboard'.`); 
+                alert("[navigateToSection] Reached Dashboard Case - Bypassing initDashboard call."); // <-- TEST ALERT
+                // initDashboard(user); // Keep commented for this test
                 break;
             case 'users':
                 initUsers(user); // Restore user param
