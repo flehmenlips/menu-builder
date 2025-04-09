@@ -161,7 +161,22 @@ const authorizeAdmin = (req, res, next) => {
 
 // Middleware
 app.use(cors({
-    origin: true,
+    origin: function (origin, callback) {
+      const allowedOrigins = [
+        process.env.FRONTEND_URL || 'http://localhost:4000', // Main app
+        process.env.ADMIN_URL || 'http://localhost:4000'     // Admin app (can be same for local dev)
+        // Add other origins if needed (e.g., from a separate user portal domain)
+      ];
+      // Allow requests with no origin (like mobile apps or curl requests) for simplicity for now
+      // In production, you might want to be stricter
+      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        console.log(`CORS: Allowed origin: ${origin || '*none*'}`);
+        callback(null, true);
+      } else {
+        console.warn(`CORS: Blocked origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true
 }));
 app.use(bodyParser.json());

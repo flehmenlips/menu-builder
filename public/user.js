@@ -1,5 +1,9 @@
 // User Portal JavaScript
 
+// Define API Base URL (Replace with process.env in build step or config later)
+// const API_BASE_URL = window.config?.apiUrl || 'http://localhost:4000'; // Remove this line
+const API_BASE_URL = '/api'; // Use relative path
+
 // Global variables
 let currentUser = null;
 let authToken = null;
@@ -138,7 +142,7 @@ async function handleUserLogin(event) {
     const loginMsgElement = document.getElementById('login-message'); 
 
     try {
-        const response = await fetch('/api/auth/login', { 
+        const response = await fetch(`${API_BASE_URL}/auth/login`, { // Removed /api prefix
              method: 'POST',
              headers: {'Content-Type': 'application/json'},
              body: JSON.stringify({ email, password })
@@ -182,7 +186,7 @@ async function handleUserRegistration(event) {
     }
 
     try {
-        const response = await fetch('/api/auth/register', {
+        const response = await fetch(`${API_BASE_URL}/auth/register`, { // Removed /api prefix
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -209,13 +213,13 @@ async function handleUserRegistration(event) {
 async function verifyUserToken() { // Removed token parameter
     console.log("verifyUserToken: Starting verification (using cookie)...");
     try {
-        const response = await fetch('/api/auth/verify', { 
+        const response = await fetch(`${API_BASE_URL}/auth/verify`, { // Removed /api prefix
             method: 'GET',
             credentials: 'include'
         });
-        console.log("verifyUserToken: /api/auth/verify status:", response.status);
+        console.log("verifyUserToken: /auth/verify status:", response.status);
         const data = await response.json(); 
-        console.log("verifyUserToken: /api/auth/verify data:", data);
+        console.log("verifyUserToken: /auth/verify data:", data);
 
         if (response.ok && data.loggedIn) {
             console.log("verifyUserToken: SUCCESS - Logged In. User:", data.user);
@@ -268,7 +272,7 @@ async function verifyUserToken() { // Removed token parameter
 }
 
 function handleLogout() {
-    fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+    fetch(`${API_BASE_URL}/auth/logout`, { method: 'POST', credentials: 'include' }) // Removed /api prefix
         .catch(err => console.error("Server logout call failed:", err))
         .finally(() => {
             localStorage.removeItem('user'); // Clear the unified user data
@@ -322,7 +326,7 @@ function showSection(sectionId) {
 async function loadDashboardData() {
     console.log("Loading dashboard data...");
     try {
-        const response = await fetch('/api/user/dashboard-stats', { 
+        const response = await fetch(`${API_BASE_URL}/user/dashboard-stats`, { // Removed /api prefix
              method: 'GET',
              credentials: 'include'
         });
@@ -385,7 +389,7 @@ async function loadMenusData() {
     console.log("Loading menus data...");
     try {
         // Use the correct endpoint and cookie auth
-        const response = await fetch('/api/menus', { 
+        const response = await fetch(`${API_BASE_URL}/menus`, { // Removed /api prefix
             method: 'GET',
             credentials: 'include'
         });
@@ -468,7 +472,7 @@ async function deleteMenuByName(menuName) {
     }
 
     try {
-         const response = await fetch(`/api/menus/${encodeURIComponent(menuName)}`, { 
+         const response = await fetch(`${API_BASE_URL}/menus/${encodeURIComponent(menuName)}`, { // Removed /api prefix
             method: 'DELETE',
             credentials: 'include'
         });
@@ -503,7 +507,7 @@ function createNewMenu() {
 
 async function editMenu(menuId) {
     try {
-        const response = await fetch(`/api/user/menus/${menuId}`, {
+        const response = await fetch(`${API_BASE_URL}/user/menus/${menuId}`, { // Removed /api prefix
             headers: {
                 'Authorization': `Bearer ${authToken}`
             }
@@ -539,7 +543,7 @@ async function saveMenu(event) {
     };
 
     try {
-        const response = await fetch(`/api/user/menus/${menuId}`, {
+        const response = await fetch(`${API_BASE_URL}/user/menus/${menuId}`, { // Removed /api prefix
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${authToken}`,
@@ -566,7 +570,7 @@ async function deleteMenu(menuId) {
     }
 
     try {
-        const response = await fetch(`/api/user/menus/${menuId}`, {
+        const response = await fetch(`${API_BASE_URL}/user/menus/${menuId}`, { // Removed /api prefix
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${authToken}`
@@ -586,7 +590,7 @@ async function deleteMenu(menuId) {
 
 async function useTemplate(templateId) {
     try {
-        const response = await fetch(`/api/user/templates/${templateId}`, {
+        const response = await fetch(`${API_BASE_URL}/user/templates/${templateId}`, { // Removed /api prefix
             headers: {
                 'Authorization': `Bearer ${authToken}`
             }
@@ -603,7 +607,7 @@ async function useTemplate(templateId) {
                 is_published: false
             };
 
-            const createResponse = await fetch('/api/user/menus', {
+            const createResponse = await fetch(`${API_BASE_URL}/user/menus`, { // Removed /api prefix
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${authToken}`,
@@ -642,7 +646,7 @@ async function saveProfile(event) {
     }
 
     try {
-        const response = await fetch('/api/user/profile', {
+        const response = await fetch(`${API_BASE_URL}/user/profile`, { // Removed /api prefix
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -665,7 +669,7 @@ async function saveProfile(event) {
 
 async function upgradePlan(planId) {
     try {
-        const response = await fetch('/api/user/billing/upgrade', {
+        const response = await fetch(`${API_BASE_URL}/user/billing/upgrade`, { // Removed /api prefix
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${authToken}`,
@@ -738,7 +742,7 @@ async function fetchProfileData() {
     }
 
     try {
-        const response = await fetch('/api/profile', {
+        const response = await fetch(`${API_BASE_URL}/profile`, { // Removed /api prefix
             method: 'GET',
             credentials: 'include'
         });
@@ -845,7 +849,7 @@ function setupProfileForm() {
         console.log('Submitting profile data (incl. logo path):', profileData);
 
         try {
-            const response = await fetch('/api/profile', {
+            const response = await fetch(`${API_BASE_URL}/profile`, { // Removed /api prefix
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
@@ -898,7 +902,7 @@ function setupLogoUpload() {
         formData.append('logo', file);
 
         try {
-            const response = await fetch('/api/profile/logo', {
+            const response = await fetch(`${API_BASE_URL}/profile/logo`, { // Removed /api prefix
                 method: 'POST',
                 headers: {
                 },

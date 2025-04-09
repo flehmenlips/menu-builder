@@ -1,3 +1,6 @@
+// Define API Base URL (Replace with process.env in build step or config later)
+const API_BASE_URL = '/api'; 
+
 document.addEventListener('DOMContentLoaded', function() {
     // Handle user dropdown functionality
     const userDropdown = document.querySelector('.user-dropdown');
@@ -37,7 +40,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show confirmation dialog
             if (confirm('Are you sure you want to log out?')) {
                 // Send logout request to the server
-                fetch('/api/auth/logout', {
+                fetch(`${API_BASE_URL}/auth/logout`, {
                     method: 'POST',
                     credentials: 'include'
                 })
@@ -85,12 +88,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // If user exists locally, verify with server to ensure session is still valid
         console.log("app-header: User found locally, verifying with server...");
-        fetch('/api/auth/verify', {
+        fetch(`${API_BASE_URL}/auth/verify`, {
             method: 'GET',
             credentials: 'include' // Send cookies
         })
         .then(response => {
-             console.log("app-header: /api/auth/verify response status:", response.status);
+             console.log("app-header: /auth/verify response status:", response.status);
              if (!response.ok) {
                  // Handle non-200 responses gracefully before trying to parse JSON
                  throw new Error(`Verification failed with status: ${response.status}`);
@@ -98,7 +101,7 @@ document.addEventListener('DOMContentLoaded', function() {
              return response.json();
          })
         .then(data => {
-             console.log("app-header: /api/auth/verify response data:", data);
+             console.log("app-header: /auth/verify response data:", data);
             if (!data.loggedIn) { // Check 'loggedIn' property
                 // If not authenticated server-side, clear local user and redirect
                 console.log("app-header: Server verification failed, clearing user and redirecting to login.html");
@@ -160,7 +163,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function logout() { // Assuming this is called by an event listener
         console.log('Logging out...');
         try {
-            await fetch('/api/auth/logout', { 
+            await fetch(`${API_BASE_URL}/auth/logout`, { 
                 method: 'POST', 
                 credentials: 'include' 
             });

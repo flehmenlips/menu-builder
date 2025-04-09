@@ -1,3 +1,9 @@
+// Define API Base URL - Updated to be relative
+const API_BASE_URL = '/api';
+
+// Global variables
+let currentUser = null;
+
 // Add before the DOMContentLoaded event
 // Clear stored login data
 function clearLoginData() {
@@ -67,7 +73,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async function() {
             try {
-                await fetch('/api/auth/logout', {
+                await fetch(`${API_BASE_URL}/auth/logout`, {
                     method: 'POST',
                     credentials: 'include'
                 });
@@ -98,7 +104,7 @@ function initLoginForm() {
         const password = document.getElementById('admin-password').value;
         
         try {
-            const response = await fetch('/api/admin/login', {
+            const response = await fetch(`${API_BASE_URL}/admin/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -146,7 +152,7 @@ function initLoginForm() {
 
 // Check if admin exists (only called if user is not logged in)
 function checkAdminExists() {
-    fetch('/api/admin/exists')
+    fetch(`${API_BASE_URL}/admin/exists`)
     .then(response => response.json())
     .then(data => {
         if (!data.exists) {
@@ -196,7 +202,7 @@ function checkAdminAuth() {
     
     // Show admin setup if no user is found
     if (!user) {
-        fetch('/api/admin/check', {
+        fetch(`${API_BASE_URL}/admin/check`, {
             method: 'GET',
             credentials: 'include'
         })
@@ -217,7 +223,7 @@ function checkAdminAuth() {
     }
     
     // Verify admin status
-    fetch('/api/auth/verify', {
+    fetch(`${API_BASE_URL}/auth/verify`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -285,7 +291,7 @@ function initSetupForm() {
         submitBtn.disabled = true;
         submitBtn.textContent = 'Creating Account...';
         
-        fetch('/api/admin/setup', {
+        fetch(`${API_BASE_URL}/admin/setup`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -424,7 +430,7 @@ function initNavigation() {
 
 // Handle logout
 function handleLogout() {
-    fetch('/api/auth/logout', {
+    fetch(`${API_BASE_URL}/auth/logout`, {
         method: 'POST',
         credentials: 'include'
     })
@@ -454,7 +460,7 @@ function fetchDashboardStats() {
     }
     
     // Fetch total users
-    fetch('/api/admin/stats/users', {
+    fetch(`${API_BASE_URL}/admin/stats/users`, {
         headers: {
             'Authorization': `Bearer ${user.token}`,
             'Content-Type': 'application/json'
@@ -489,7 +495,7 @@ function fetchDashboardStats() {
     });
     
     // Fetch total menus
-    fetch('/api/admin/stats/menus', {
+    fetch(`${API_BASE_URL}/admin/stats/menus`, {
         headers: {
             'Authorization': `Bearer ${user.token}`,
             'Content-Type': 'application/json'
@@ -560,7 +566,7 @@ function fetchUsers(page = 1, limit = 20, search = '') {
         tbody.innerHTML = '<tr><td colspan="7" class="loading-data">Loading users...</td></tr>';
     }
     
-    fetch(`/api/admin/users?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`, {
+    fetch(`${API_BASE_URL}/admin/users?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`, {
         headers: {
             'Authorization': `Bearer ${user.token}`,
             'Content-Type': 'application/json'
@@ -801,7 +807,7 @@ function fetchUserDetails(userId) {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     if (!user) return;
     
-    fetch(`/api/admin/users/${userId}`, {
+    fetch(`${API_BASE_URL}/admin/users/${userId}`, {
         headers: {
             'Authorization': `Bearer ${user.token || ''}`
         },
@@ -862,7 +868,7 @@ function saveUser() {
     
     // Determine if adding or updating
     const method = userId ? 'PUT' : 'POST';
-    const url = userId ? `/api/admin/users/${userId}` : '/api/admin/users';
+    const url = userId ? `${API_BASE_URL}/admin/users/${userId}` : `${API_BASE_URL}/admin/users`;
     
     fetch(url, {
         method,
@@ -894,7 +900,7 @@ function deleteUser(userId) {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     if (!user) return;
     
-    fetch(`/api/admin/users/${userId}`, {
+    fetch(`${API_BASE_URL}/admin/users/${userId}`, {
         method: 'DELETE',
         headers: {
             'Authorization': `Bearer ${user.token || ''}`
@@ -953,7 +959,7 @@ function fetchPlans() {
         `;
     }
     
-    fetch('/api/admin/plans?includeInactive=true', {
+    fetch(`${API_BASE_URL}/admin/plans?includeInactive=true`, {
         headers: {
             'Authorization': `Bearer ${user.token}`,
             'Content-Type': 'application/json'
@@ -1128,7 +1134,7 @@ function fetchPlanDetails(planId) {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     if (!user) return;
     
-    fetch(`/api/admin/plans/${planId}`, {
+    fetch(`${API_BASE_URL}/admin/plans/${planId}`, {
         headers: {
             'Authorization': `Bearer ${user.token || ''}`
         },
@@ -1194,7 +1200,7 @@ function savePlan() {
     
     // Determine if adding or updating
     const method = planId ? 'PUT' : 'POST';
-    const url = planId ? `/api/admin/plans/${planId}` : '/api/admin/plans';
+    const url = planId ? `${API_BASE_URL}/admin/plans/${planId}` : `${API_BASE_URL}/admin/plans`;
     
     fetch(url, {
         method,
@@ -1226,7 +1232,7 @@ function deletePlan(planId) {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     if (!user) return;
     
-    fetch(`/api/admin/plans/${planId}`, {
+    fetch(`${API_BASE_URL}/admin/plans/${planId}`, {
         method: 'DELETE',
         headers: {
             'Authorization': `Bearer ${user.token || ''}`
@@ -1285,7 +1291,7 @@ function fetchContent() {
     const contentList = document.getElementById('content-blocks-list');
     contentList.innerHTML = '<div class="content-loading">Loading content blocks...</div>';
     
-    fetch('/api/admin/content', {
+    fetch(`${API_BASE_URL}/admin/content`, {
         headers: {
             'Authorization': `Bearer ${user.token || ''}`
         },
@@ -1311,7 +1317,7 @@ function fetchContentBySection(section) {
     const contentList = document.getElementById('content-blocks-list');
     contentList.innerHTML = '<div class="content-loading">Loading content blocks...</div>';
     
-    const url = section === 'all' ? '/api/admin/content' : `/api/admin/content/section/${section}`;
+    const url = section === 'all' ? `${API_BASE_URL}/admin/content` : `${API_BASE_URL}/admin/content/section/${section}`;
     
     fetch(url, {
         headers: {
@@ -1336,7 +1342,7 @@ function fetchContentSections() {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     if (!user) return;
     
-    fetch('/api/admin/content/sections', {
+    fetch(`${API_BASE_URL}/admin/content/sections`, {
         headers: {
             'Authorization': `Bearer ${user.token || ''}`
         },
@@ -1641,7 +1647,7 @@ function fetchContentDetails(contentId) {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     if (!user) return;
     
-    fetch(`/api/admin/content/${contentId}`, {
+    fetch(`${API_BASE_URL}/admin/content/${contentId}`, {
         headers: {
             'Authorization': `Bearer ${user.token || ''}`
         },
@@ -1749,7 +1755,7 @@ function saveContent() {
     
     // Determine if creating or updating
     const method = contentId ? 'PUT' : 'POST';
-    const url = contentId ? `/api/admin/content/${contentId}` : '/api/admin/content';
+    const url = contentId ? `${API_BASE_URL}/admin/content/${contentId}` : `${API_BASE_URL}/admin/content`;
     
     fetch(url, {
         method,
@@ -1782,7 +1788,7 @@ function deleteContent(contentId) {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     if (!user) return;
     
-    fetch(`/api/admin/content/${contentId}`, {
+    fetch(`${API_BASE_URL}/admin/content/${contentId}`, {
         method: 'DELETE',
         headers: {
             'Authorization': `Bearer ${user.token || ''}`
@@ -1814,7 +1820,7 @@ function uploadContentImage(file) {
     const formData = new FormData();
     formData.append('image', file);
     
-    fetch('/api/admin/content/upload-image', {
+    fetch(`${API_BASE_URL}/admin/content/upload-image`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${user.token || ''}`
@@ -1867,7 +1873,7 @@ function loadSettings() {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     if (!user) return;
     
-    fetch('/api/admin/settings', {
+    fetch(`${API_BASE_URL}/admin/settings`, {
         headers: {
             'Authorization': `Bearer ${user.token || ''}`
         },
@@ -1972,7 +1978,7 @@ function uploadLogo(file) {
     const formData = new FormData();
     formData.append('logo', file);
     
-    fetch('/api/admin/settings/logo', {
+    fetch(`${API_BASE_URL}/admin/settings/logo`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${user.token || ''}`
@@ -2009,7 +2015,7 @@ function removeLogo() {
         return;
     }
     
-    fetch('/api/admin/settings/logo', {
+    fetch(`${API_BASE_URL}/admin/settings/logo`, {
         method: 'DELETE',
         headers: {
             'Authorization': `Bearer ${user.token || ''}`
@@ -2067,7 +2073,7 @@ function uploadFavicon(file) {
     const formData = new FormData();
     formData.append('favicon', file);
     
-    fetch('/api/admin/settings/favicon', {
+    fetch(`${API_BASE_URL}/admin/settings/favicon`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${user.token || ''}`
@@ -2110,7 +2116,7 @@ function saveSettings() {
         free_trial_days: document.getElementById('free-trial-days').value
     };
     
-    fetch('/api/admin/settings', {
+    fetch(`${API_BASE_URL}/admin/settings`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -2168,7 +2174,7 @@ function fetchAppearanceSettings() {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     if (!user) return;
     
-    fetch('/api/admin/settings', {
+    fetch(`${API_BASE_URL}/admin/settings/appearance`, {
         headers: {
             'Authorization': `Bearer ${user.token || ''}`
         },
@@ -2202,7 +2208,7 @@ function saveAppearanceSettings() {
         secondary_color: document.getElementById('secondary-color').value
     };
     
-    fetch('/api/admin/settings', {
+    fetch(`${API_BASE_URL}/admin/settings/appearance`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
