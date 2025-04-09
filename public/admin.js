@@ -140,14 +140,19 @@ function logout() {
 // Function to navigate between sections and initialize them
 // ACCEPTS USER OBJECT
 function navigateToSection(section, user) { // Added user parameter
+    console.log(`[navigateToSection] Attempting to navigate to section: "${section}"`);
     // Hide all sections
     const sections = document.querySelectorAll('.content-section');
+    console.log(`[navigateToSection] Found ${sections.length} elements with class .content-section. Hiding all.`);
     sections.forEach(s => s.style.display = 'none');
 
     // Show the target section
-    const activeSection = document.getElementById(section);
+    console.log(`[navigateToSection] Trying to find element with ID: "${section}"`);
+    const activeSection = document.getElementById(section); 
+    
     if (activeSection) {
-        activeSection.style.display = 'block';
+        console.log(`[navigateToSection] Found element #${section}. Setting display: block.`);
+        activeSection.style.display = 'block'; // This should make the target section visible
 
         // Update active link in sidebar
         const navLinks = document.querySelectorAll('.sidebar-nav a');
@@ -159,9 +164,9 @@ function navigateToSection(section, user) { // Added user parameter
         });
 
         // Initialize the section-specific JS, PASSING USER OBJECT
+        console.log(`[navigateToSection] Initializing JS for section: "${section}"`);
         switch (section) {
             case 'dashboard':
-                // Pass user to initDashboard
                 initDashboard(user);
                 break;
             case 'users':
@@ -190,15 +195,15 @@ function navigateToSection(section, user) { // Added user parameter
                  break;
              // Add cases for other sections as needed
              default:
-                 console.warn(`Unknown section requested: ${section}`);
+                 console.warn(`[navigateToSection] Unknown section JS initialization requested: ${section}`);
                  // Optionally navigate to dashboard if section unknown
                  // navigateToSection('dashboard', user);
                  break;
         }
+        console.log(`[navigateToSection] Finished JS initialization for section: "${section}"`);
     } else {
-        console.warn(`Section "${section}" not found. Defaulting to dashboard.`);
-        // Default to dashboard, passing user
-        navigateToSection('dashboard', user);
+        console.error(`[navigateToSection] CRITICAL: Element with ID "${section}" NOT FOUND in the DOM.`); 
+        // We should NOT recursively call here. The page will appear blank for this section.
     }
 }
 
