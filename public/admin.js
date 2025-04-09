@@ -2283,10 +2283,12 @@ function initGlobalSettings() {
             const formData = new FormData();
             formData.append('app_logo', file); // Match the field name expected by multer
 
-            const user = JSON.parse(localStorage.getItem('user'));
-            if (!user || !user.token) {
-                showMessage(messageDiv, 'Authentication error. Please log in again.', 'error');
-                return;
+            // CORRECTED: Retrieve user token consistently
+            const loggedInUser = JSON.parse(localStorage.getItem('user') || 'null');
+            if (!loggedInUser || !loggedInUser.token) {
+                 console.error('initGlobalSettings: No user token found in localStorage for logo upload.'); // Added log detail
+                 showMessage(messageDiv, 'Authentication error. Please log in again.', 'error');
+                 return;
             }
 
             try {
@@ -2296,7 +2298,8 @@ function initGlobalSettings() {
                 const response = await fetch(`${API_BASE_URL}/admin/settings/app-logo`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${user.token}`
+                        // CORRECTED: Use the retrieved token
+                        'Authorization': `Bearer ${loggedInUser.token}`
                         // Content-Type is set automatically for FormData
                     },
                     body: formData
