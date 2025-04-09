@@ -226,78 +226,86 @@ function initDashboard(user) { // Added user parameter
 
 // Fetch dashboard stats - ACCEPTS USER OBJECT
 function fetchDashboardStats(user) { // Added user parameter
-    console.log("[fetchDashboardStats] Function called."); // <-- ADD ENTRY LOG
-    if (!user || !user.token) { 
-        console.error('fetchDashboardStats: Auth token not provided via user object.'); 
-        return;
-    }
+    console.log("[fetchDashboardStats] ENTERED FUNCTION."); // <-- MOVED ENTRY LOG TO VERY TOP
+    try { // <-- ADD try block around entire function body
+        // console.log("[fetchDashboardStats] Function called."); // Removed duplicate log
+        if (!user || !user.token) { 
+            console.error('fetchDashboardStats: Auth token not provided via user object.'); 
+            return; // Exit early if no token
+        }
 
-    console.log("[fetchDashboardStats] Starting fetch for user and menu stats.");
+        console.log("[fetchDashboardStats] Starting fetch for user and menu stats.");
 
-    // Fetch total users
-    fetch(`${API_BASE_URL}/admin/stats/users`, {
-        headers: {
-            'Authorization': `Bearer ${user.token}`, // Use passed user token
-            'Content-Type': 'application/json'
-        },
-        credentials: 'include' // Keep credentials if needed for session cookies alongside Bearer
-    })
-    .then(response => {
-        console.log("[fetchDashboardStats] Users API response status:", response.status);
-        if (!response.ok) throw new Error(`Users API Error: ${response.status}`);
-        return response.json();
-    })
-    .then(data => {
-        console.log("[fetchDashboardStats] Users API data:", data);
-        if (data.error) throw new Error(data.error);
-        const totalUsers = document.getElementById('total-users');
-        const proUsers = document.getElementById('pro-users');
-        const newUsers = document.getElementById('new-users');
+        // Fetch total users
+        fetch(`${API_BASE_URL}/admin/stats/users`, {
+            headers: {
+                'Authorization': `Bearer ${user.token}`, 
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+        })
+        .then(response => {
+            console.log("[fetchDashboardStats] Users API response status:", response.status);
+            if (!response.ok) throw new Error(`Users API Error: ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            console.log("[fetchDashboardStats] Users API data:", data);
+            if (data.error) throw new Error(data.error);
+            const totalUsers = document.getElementById('total-users');
+            const proUsers = document.getElementById('pro-users');
+            const newUsers = document.getElementById('new-users');
+            
+            console.log(`[fetchDashboardStats] Found elements - totalUsers: ${!!totalUsers}, proUsers: ${!!proUsers}, newUsers: ${!!newUsers}`);
+
+            if (totalUsers) totalUsers.textContent = data.count || 0;
+            if (proUsers) proUsers.textContent = data.proCount || 0;
+            if (newUsers) newUsers.textContent = data.newThisMonth || 0;
+            console.log("[fetchDashboardStats] Updated user stats elements.");
+        })
+        .catch(error => {
+            console.error('[fetchDashboardStats] Error fetching/processing user stats:', error);
+            const totalUsers = document.getElementById('total-users');
+            const proUsers = document.getElementById('pro-users');
+            const newUsers = document.getElementById('new-users');
+
+            if (totalUsers) totalUsers.textContent = 'Error';
+            if (proUsers) proUsers.textContent = 'Error';
+            if (newUsers) newUsers.textContent = 'Error';
+        });
+
+        // Fetch total menus using the passed user token
+        fetch(`${API_BASE_URL}/admin/stats/menus`, {
+            headers: {
+                'Authorization': `Bearer ${user.token}`, 
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include' 
+        })
+        .then(response => {
+            console.log("[fetchDashboardStats] Menus API response status:", response.status);
+            if (!response.ok) throw new Error(`Menus API Error: ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            console.log("[fetchDashboardStats] Menus API data:", data);
+            if (data.error) throw new Error(data.error);
+            const totalMenus = document.getElementById('total-menus');
+            console.log(`[fetchDashboardStats] Found element - totalMenus: ${!!totalMenus}`);
+            if (totalMenus) totalMenus.textContent = data.count || 0;
+            console.log("[fetchDashboardStats] Updated menu stats element.");
+        })
+        .catch(error => {
+            console.error('[fetchDashboardStats] Error fetching/processing menu stats:', error);
+            const totalMenus = document.getElementById('total-menus');
+            if (totalMenus) totalMenus.textContent = 'Error';
+        });
         
-        console.log(`[fetchDashboardStats] Found elements - totalUsers: ${!!totalUsers}, proUsers: ${!!proUsers}, newUsers: ${!!newUsers}`);
+        console.log("[fetchDashboardStats] Finished setting up fetches."); // Log end of synchronous part
 
-        if (totalUsers) totalUsers.textContent = data.count || 0;
-        if (proUsers) proUsers.textContent = data.proCount || 0;
-        if (newUsers) newUsers.textContent = data.newThisMonth || 0;
-        console.log("[fetchDashboardStats] Updated user stats elements.");
-    })
-    .catch(error => {
-        console.error('[fetchDashboardStats] Error fetching/processing user stats:', error);
-        const totalUsers = document.getElementById('total-users');
-        const proUsers = document.getElementById('pro-users');
-        const newUsers = document.getElementById('new-users');
-
-        if (totalUsers) totalUsers.textContent = 'Error';
-        if (proUsers) proUsers.textContent = 'Error';
-        if (newUsers) newUsers.textContent = 'Error';
-    });
-
-    // Fetch total menus using the passed user token
-    fetch(`${API_BASE_URL}/admin/stats/menus`, {
-        headers: {
-            'Authorization': `Bearer ${user.token}`, // Use passed user token
-            'Content-Type': 'application/json'
-        },
-        credentials: 'include' // Keep credentials if needed
-    })
-    .then(response => {
-        console.log("[fetchDashboardStats] Menus API response status:", response.status);
-        if (!response.ok) throw new Error(`Menus API Error: ${response.status}`);
-        return response.json();
-    })
-    .then(data => {
-        console.log("[fetchDashboardStats] Menus API data:", data);
-        if (data.error) throw new Error(data.error);
-        const totalMenus = document.getElementById('total-menus');
-        console.log(`[fetchDashboardStats] Found element - totalMenus: ${!!totalMenus}`);
-        if (totalMenus) totalMenus.textContent = data.count || 0;
-        console.log("[fetchDashboardStats] Updated menu stats element.");
-    })
-    .catch(error => {
-        console.error('[fetchDashboardStats] Error fetching/processing menu stats:', error);
-        const totalMenus = document.getElementById('total-menus');
-        if (totalMenus) totalMenus.textContent = 'Error';
-    });
+    } catch (e) { // <-- ADD catch block for entire function body
+        console.error("[fetchDashboardStats] UNEXPECTED SYNC ERROR:", e);
+    }
 }
 
 
