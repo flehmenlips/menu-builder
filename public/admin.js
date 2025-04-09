@@ -1117,9 +1117,10 @@ async function checkAdminAuth() { // Make function async
         // alert(`[checkAdminAuth] /auth/verify parsed data:\n${JSON.stringify(data, null, 2)}`); // Remove alert
 
         // CORRECTED: Check data.loggedIn instead of data.authenticated
-        if (response.status === 401 || !data.loggedIn || !data.user?.is_admin) {
-            // alert(`[checkAdminAuth] Verification FAILED. Status: ${response.status}, Authenticated: ${data.authenticated}, Is Admin: ${data.user?.is_admin}. REDIRECTING.`); // Remove alert
-            console.log(`checkAdminAuth: Verification failed. Status: ${response.status}, LoggedIn: ${data.loggedIn}, Is Admin: ${data.user?.is_admin}`); // Use loggedIn
+        // ADD Explicit check for admin status (true or 1)
+        const isAdmin = data.user?.is_admin === true || data.user?.is_admin === 1;
+        if (response.status === 401 || !data.loggedIn || !isAdmin) {
+            console.log(`checkAdminAuth: Verification failed. Status: ${response.status}, LoggedIn: ${data.loggedIn}, Is Admin Check: ${isAdmin} (User Object: ${JSON.stringify(data.user)})`);
             localStorage.removeItem('user');
             window.location.href = `/login.html?admin=true&reason=${response.status === 401 ? 'unauthorized' : 'not_admin'}`;
             return null; // Indicate failure
@@ -1127,6 +1128,8 @@ async function checkAdminAuth() { // Make function async
             // alert('[checkAdminAuth] Verification successful. User is admin. Proceeding to load panel.'); // Remove alert
             console.log("checkAdminAuth: Verification successful. User is admin.");
             hideSetupForm(); // Ensure setup form is hidden if verification succeeds
+            // Add FINAL success alert before returning
+            alert(`[checkAdminAuth] SUCCESS! Returning user object:\n${JSON.stringify(data.user)}`);
             return data.user;
         }
     } catch (error) {
