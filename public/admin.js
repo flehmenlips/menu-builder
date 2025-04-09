@@ -117,8 +117,8 @@ function logout() {
     if (confirm('Are you sure you want to log out?')) {
         // Send logout request to the server
         fetch(`${API_BASE_URL}/auth/logout`, {
-            method: 'POST',
-            credentials: 'include'
+                    method: 'POST',
+                    credentials: 'include'
         })
         .then(response => response.json())
         .then(data => {
@@ -169,8 +169,12 @@ function navigateToSection(section, user) { // Added user parameter
         console.log(`[navigateToSection] BEFORE switch statement for section: "${section}"`); // Corrected syntax
         switch (section) {
             case 'dashboard':
-                console.log(`[navigateToSection] INSIDE case 'dashboard'. Calling initDashboard.`); // Corrected syntax
-                initDashboard(user);
+                console.log(`[navigateToSection] INSIDE case 'dashboard'. Calling initDashboard.`);
+                try { // <-- ADD try
+                    initDashboard(user);
+                } catch (e) { // <-- ADD catch
+                    console.error(`[navigateToSection] ERROR occurred calling initDashboard:`, e);
+                }
                 break;
             case 'users':
                 // TODO: Update initUsers later
@@ -907,7 +911,7 @@ function initGlobalSettings(user) { // Added user parameter
             }
             logoInput.value = ''; // Clear the file input
 
-        } catch (error) {
+            } catch (error) {
             console.error('Error uploading logo:', error);
             showMessage(messageDiv, `Error uploading logo: ${error.message}`, 'error');
         } finally {
@@ -1103,17 +1107,17 @@ async function checkAdminAuth() { // Make function async
         // ... (rest of the no-user logic which might also redirect)
         try {
             const response = await fetch(`${API_BASE_URL}/admin/check`, {
-                method: 'GET',
-                credentials: 'include'
+            method: 'GET',
+            credentials: 'include'
             });
             const data = await response.json();
             // alert(`[checkAdminAuth] Server setup check response: ${JSON.stringify(data)}`); // Remove alert
             if (data.needsSetup) {
                  console.log("checkAdminAuth: Admin setup needed.");
                  // alert("[checkAdminAuth] Admin setup needed. Showing setup form."); // Remove alert
-                 showSetupForm();
+                showSetupForm();
                  return null;
-             } else {
+            } else {
                  console.log("checkAdminAuth: No user and no setup needed. Redirecting to login.");
                  // alert("[checkAdminAuth] No user and no setup needed. Redirecting to login."); // Remove alert
                  window.location.href = '/login.html?admin=true&reason=no_user';
@@ -1145,9 +1149,9 @@ async function checkAdminAuth() { // Make function async
 
     try {
         const response = await fetch(`${API_BASE_URL}/auth/verify`, { // Await fetch
-            method: 'GET',
-            credentials: 'include',
-            headers: {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
                 'Authorization': `Bearer ${user.token}`
             }
         });
@@ -3165,7 +3169,7 @@ function saveAppearanceSettings() {
         console.error('Error saving appearance settings:', error);
         alert('Error saving appearance settings: ' + error.message);
     });
-}
+} 
 
 // --- START: Global Settings Section Logic --- 
 
