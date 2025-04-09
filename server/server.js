@@ -229,7 +229,8 @@ app.get('/api/auth/verify', async (req, res) => {
                 id: user.id,
                 name: user.name,
                 email: user.email,
-                is_admin: user.is_admin === true // CORRECT CHECK: Check for boolean true
+                is_admin: user.is_admin === true, // Keep this for now, maybe useful
+                role: user.role // Add the role field
             }
         };
         console.log("GET /api/auth/verify: Responding with success:", responseData);
