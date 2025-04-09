@@ -169,12 +169,10 @@ function navigateToSection(section, user) { // Added user parameter
         console.log(`[navigateToSection] BEFORE switch statement for section: "${section}"`); // Corrected syntax
         switch (section) {
             case 'dashboard':
-                console.log(`[navigateToSection] INSIDE case 'dashboard'. Calling initDashboard.`);
-                try { // <-- ADD try
-                    initDashboard(user);
-                } catch (e) { // <-- ADD catch
-                    console.error(`[navigateToSection] ERROR occurred calling initDashboard:`, e);
-                }
+                console.log(`[navigateToSection] INSIDE case 'dashboard'. Attempting call.`);
+                alert(`[navigateToSection] INSIDE case 'dashboard'. BEFORE initDashboard call (now commented).`); // <-- ADD ALERT BEFORE
+                // initDashboard(user); // <-- Temporarily Comment out again
+                alert(`[navigateToSection] INSIDE case 'dashboard'. AFTER initDashboard call (was commented).`); // <-- ADD ALERT AFTER
                 break;
             case 'users':
                 // TODO: Update initUsers later
