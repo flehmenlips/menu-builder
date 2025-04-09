@@ -1152,8 +1152,8 @@ async function checkAdminAuth() { // Make function async
             return data.user;
         }
     } catch (error) {
-        // alert(`[checkAdminAuth] Auth verification FETCH FAILED with error: ${error}. REDIRECTING.`); // Remove alert
-        console.error('checkAdminAuth: Auth verification fetch error:', error);
+        // Log the FULL error object for more details
+        console.error('checkAdminAuth: Auth verification fetch FAILED. Error Object:', error);
         localStorage.removeItem('user');
         window.location.href = '/login.html?admin=true&reason=verify_fetch_error';
         return null; // Indicate failure
