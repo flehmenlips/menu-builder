@@ -36,8 +36,13 @@ document.addEventListener('DOMContentLoaded', function() {
         window.history.replaceState({}, document.title, window.location.pathname);
     }
     
-    const user = JSON.parse(localStorage.getItem('user') || 'null');
-    console.log('Stored user data:', user);
+    // ADDED LOGGING: Log the raw string from localStorage
+    const rawUserData = localStorage.getItem('user');
+    console.log('admin.js: Raw data read from localStorage:', rawUserData);
+    
+    // Parse the data (original line, keep as is)
+    const user = JSON.parse(rawUserData || 'null'); 
+    console.log('admin.js: Parsed user data:', user); // Renamed original log for clarity
     
     const adminPanel = document.getElementById('admin-panel');
     const loginContainer = document.getElementById('admin-login-container');

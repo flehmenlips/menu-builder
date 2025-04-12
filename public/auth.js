@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     user: data.user,
                     token: data.token
                 };
+                console.log('auth.js: Saving to localStorage:', userDataForStorage);
                 localStorage.setItem('user', JSON.stringify(userDataForStorage));
                 
                 // REVERTED: Always redirect to /menu-builder as requested
