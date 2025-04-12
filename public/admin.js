@@ -126,8 +126,19 @@ function initLoginForm() {
                 throw new Error(data.error || 'Login failed');
             }
             
-            // Store user data
-            localStorage.setItem('user', JSON.stringify(data));
+            // Store user data CONSISTENTLY with auth.js
+            const userDataForStorage = {
+                // Create a user object within the stored data
+                user: {
+                    id: data.id, 
+                    name: data.name, 
+                    email: data.email,
+                    is_admin: data.is_admin, // Assuming API returns this correctly
+                    role: data.role // Ensure API returns role if needed elsewhere
+                },
+                token: data.token // Store token at the top level
+            };
+            localStorage.setItem('user', JSON.stringify(userDataForStorage));
             
             // Show admin panel
             const adminPanel = document.getElementById('admin-panel');
