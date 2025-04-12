@@ -53,17 +53,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Successful login
                 const userDataForStorage = {
-                    ...data.user,
+                    user: data.user,
                     token: data.token
                 };
                 localStorage.setItem('user', JSON.stringify(userDataForStorage));
                 
-                // Redirect based on admin status
-                if (data.user && data.user.is_admin) {
-                    window.location.href = '/admin.html';
-                } else {
-                    window.location.href = '/menu-builder';
-                }
+                // REVERTED: Always redirect to /menu-builder as requested
+                window.location.href = '/menu-builder';
             })
             .catch(error => {
                 // Show error message
