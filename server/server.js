@@ -390,7 +390,8 @@ app.post('/api/admin/login', async (req, res) => {
             id: user.id,
             name: user.name, // Ensure name is included if available
             email: user.email,
-            is_admin: user.is_admin === 1,
+            is_admin: user.is_admin === true, // Use strict boolean check
+            role: user.role, // ADDED: Include user role
             token
         });
     } catch (err) {
