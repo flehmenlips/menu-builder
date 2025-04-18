@@ -486,6 +486,7 @@ app.post('/api/auth/login', async (req, res) => {
                 name: result.name,     // Use result.name
                 email: result.email,    // Use result.email
                 is_admin: result.is_admin, // Use result.is_admin
+                role: result.role, // Include user role
                 token: result.token 
             }
         });
@@ -1269,6 +1270,30 @@ app.post('/api/admin/settings/app-logo',
 // Add other super admin routes here...
 
 // --- END: Super Admin Routes --- 
+
+// Serve the admin page with authentication check
+app.get('/admin.html', (req, res) => {
+    let token = null;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+        token = req.headers.authorization.substring(7);
+    } else if (req.cookies && req.cookies.token) {
+        token = req.cookies.token;
+    }
+    
+    if (!token) {
+        console.log('No token found, redirecting to login.html');
+        return res.redirect('/login.html');
+    }
+    
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        res.sendFile(path.join(__dirname, '../public/admin.html'));
+    } catch (error) {
+        console.error('Invalid token, redirecting to login.html:', error);
+        res.clearCookie('token');
+        return res.redirect('/login.html');
+    }
+});
 
 // Initialize DB and Start Server
 const startServer = async () => {
