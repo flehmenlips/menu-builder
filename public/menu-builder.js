@@ -1173,151 +1173,117 @@ function confirmIfUnsavedChanges(action) {
 
 // Function to load a menu by name
 async function loadMenu(menuName) {
-    if (!menuName) {
-        alert('Please select a menu to load');
-        return false;
-    }
-
     try {
-        const response = await fetch(`/api/menus/${menuName}`);
-        if (response.ok) {
-            const menuData = await response.json();
-            
-            // Populate the menu name field
-            document.getElementById('menu-name').value = menuData.name;
-            
-            document.getElementById('title').value = menuData.title || '';
-            document.getElementById('subtitle').value = menuData.subtitle || '';
-            document.getElementById('font-select').value = menuData.font || 'Playfair Display';
-            document.getElementById('layout-select').value = menuData.layout || 'single';
-            loadFont(menuData.font || 'Playfair Display');
-            
-            // Update configuration options
-            config.showDollarSign = menuData.show_dollar_sign !== undefined ? menuData.show_dollar_sign : true;
-            config.showDecimals = menuData.show_decimals !== undefined ? menuData.show_decimals : true;
-            config.showSectionDividers = menuData.show_section_dividers !== undefined ? menuData.show_section_dividers : true;
-            config.logoPath = menuData.logo_path || null;
-            config.logoPosition = menuData.logo_position || 'top';
-            
-            // Convert logo_size to number if it's a string with size name
-            if (menuData.logo_size) {
-                if (typeof menuData.logo_size === 'string') {
-                    // Handle legacy size names
-                    if (menuData.logo_size === 'small') config.logoSize = 100;
-                    else if (menuData.logo_size === 'medium') config.logoSize = 200;
-                    else if (menuData.logo_size === 'large') config.logoSize = 300;
-                    else if (!isNaN(parseInt(menuData.logo_size))) {
-                        // If it's a numeric string, parse it
-                        config.logoSize = parseInt(menuData.logo_size);
-                    }
-                } else if (typeof menuData.logo_size === 'number') {
-                    config.logoSize = menuData.logo_size;
-                } else {
-                    config.logoSize = 200; // Default if unrecognized format
-                }
-            } else {
-                config.logoSize = 200; // Default value
-            }
-            
-            // Handle logo offset (support legacy align field)
-            if (menuData.logo_offset) {
-                config.logoOffset = parseInt(menuData.logo_offset);
-            } else if (menuData.logo_align && menuData.logo_align !== 'center') {
-                // If we have old alignment data but no offset, default to something sensible
-                config.logoOffset = (menuData.logo_align === 'left') ? 10 : 0;
-            } else {
-                config.logoOffset = 0; // Default to centered
-            }
-            
-            config.backgroundColor = menuData.background_color || '#ffffff';
-            config.textColor = menuData.text_color || '#000000';
-            config.accentColor = menuData.accent_color || '#333333';
-            
-            // Update UI elements with loaded settings
-            document.getElementById('show-dollar-sign').checked = config.showDollarSign;
-            document.getElementById('show-decimals').checked = config.showDecimals;
-            document.getElementById('show-dividers').checked = config.showSectionDividers;
-            document.getElementById('logo-position').value = config.logoPosition;
-            
-            // Update offset inputs
-            document.getElementById('logo-offset').value = config.logoOffset;
-            document.getElementById('logo-offset-slider').value = Math.min(config.logoOffset, 500); // Limit to slider max
-            
-            // Update both size inputs
-            document.getElementById('logo-size').value = config.logoSize;
-            document.getElementById('logo-size-slider').value = Math.min(config.logoSize, 500); // Limit to slider max
-            
-            document.getElementById('background-color').value = config.backgroundColor;
-            document.getElementById('text-color').value = config.textColor;
-            document.getElementById('accent-color').value = config.accentColor;
-            
-            // Update logo preview
-            if (config.logoPath) {
-                const logoPreview = document.getElementById('logo-preview');
-                logoPreview.src = config.logoPath;
-                logoPreview.style.display = 'block';
-            } else {
-                // Show placeholder or empty state
-                const logoPreview = document.getElementById('logo-preview');
-                logoPreview.src = '/images/placeholder-logo.png';
-            }
+        // Get authentication token
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+            alert('Authentication token not found. Please log in again.');
+            window.location.href = '/login.html';
+            return;
+        }
 
-            document.getElementById('sections').innerHTML = '';
-            
-            // Handle both new format (with elements) and old format (with sections)
-            if (menuData.elements) {
-                // Sort elements by position
-                const sortedElements = [...menuData.elements].sort((a, b) => a.position - b.position);
-                
-                // Add each element based on its type
-                sortedElements.forEach(element => {
-                    if (element.type === 'spacer') {
-                        addSpacer({
-                            size: element.size,
-                            unit: element.unit
-                        });
-                    } else if (element.type === 'section') {
-                        // Sort items by position
-                        if (element.items) {
-                            element.items = [...element.items].sort((a, b) => a.position - b.position);
-                        }
-                        addSection({
-                            name: element.name,
-                            active: element.active,
-                            items: element.items
-                        });
-                    }
-                });
-            } else if (menuData.sections) {
-                // Legacy format support
-                // Sort sections by position
-                const sortedSections = [...menuData.sections].sort((a, b) => a.position - b.position);
-                sortedSections.forEach(section => {
-                    // Sort items by position
-                    if (section.items) {
-                        section.items = [...section.items].sort((a, b) => a.position - b.position);
-                    }
-                    addSection(section);
-                });
+        const response = await fetch(`/api/menus/${menuName}`, {
+            headers: {
+                'Authorization': `Bearer ${authToken}`
             }
-
-            updatePreview();
-            
-            // Initialize the state after loading
-            setTimeout(() => {
-                markChangesSaved();
-            }, 100);
-            
-            return true;
-        } else {
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401) {
+                alert('Your session has expired. Please log in again.');
+                window.location.href = '/login.html';
+                return;
+            }
             const error = await response.json();
             alert(`Error loading menu: ${error.error}`);
-            return false;
+            return;
         }
+        
+        const menu = await response.json();
+        
+        // Clear existing menu
+        document.getElementById('sections').innerHTML = '';
+        
+        // Set basic info
+        document.getElementById('menu-name').value = menu.name;
+        document.getElementById('title').value = menu.title || '';
+        document.getElementById('subtitle').value = menu.subtitle || '';
+        
+        // Set font and layout
+        const fontSelect = document.getElementById('font-select');
+        fontSelect.value = menu.font || 'Playfair Display';
+        loadFont(fontSelect.value);
+        
+        const layoutSelect = document.getElementById('layout-select');
+        layoutSelect.value = menu.layout || 'single';
+        
+        // Set configuration options
+        config.showDollarSign = menu.show_dollar_sign !== false;
+        config.showDecimals = menu.show_decimals !== false;
+        config.showSectionDividers = menu.show_section_dividers !== false;
+        config.logoPath = menu.logo_path || null;
+        config.logoPosition = menu.logo_position || 'top';
+        config.logoSize = menu.logo_size || 200;
+        config.logoOffset = menu.logo_offset || 0;
+        config.backgroundColor = menu.background_color || '#ffffff';
+        config.textColor = menu.text_color || '#000000';
+        config.accentColor = menu.accent_color || '#333333';
+        
+        // Update UI to match config
+        document.getElementById('show-dollar-sign').checked = config.showDollarSign;
+        document.getElementById('show-decimals').checked = config.showDecimals;
+        document.getElementById('show-dividers').checked = config.showSectionDividers;
+        
+        if (config.logoPath) {
+            document.getElementById('logo-preview').src = config.logoPath;
+            document.getElementById('logo-preview').style.display = 'block';
+            document.getElementById('logo-position').value = config.logoPosition;
+            document.getElementById('logo-size').value = config.logoSize;
+            document.getElementById('logo-offset').value = config.logoOffset;
+        }
+        
+        document.getElementById('background-color').value = config.backgroundColor;
+        document.getElementById('text-color').value = config.textColor;
+        document.getElementById('accent-color').value = config.accentColor;
+        
+        // Add elements
+        const elements = menu.elements || [];
+        if (elements.length === 0 && menu.sections) {
+            // Handle old format
+            menu.sections.forEach(section => addSection({
+                name: section.name,
+                active: section.active !== false && section.active !== 0,
+                items: section.items
+            }));
+        } else {
+            elements.forEach(element => {
+                if (element.type === 'spacer') {
+                    addSpacer({
+                        size: element.size,
+                        unit: element.unit
+                    });
+                } else {
+                    addSection({
+                        name: element.name,
+                        active: element.active !== false && element.active !== 0,
+                        items: element.items
+                    });
+                }
+            });
+        }
+        
+        // Update preview
+        updatePreview();
+        
+        // Mark as saved
+        markChangesSaved();
+        
+        // Store initial state after loading
+        initialState = getMenuState();
+        
     } catch (error) {
+        console.error('Error loading menu:', error);
         alert('Error loading menu. Please try again.');
-        console.error('Error:', error);
-        return false;
     }
 }
 
@@ -1380,8 +1346,30 @@ document.getElementById('save-menu').addEventListener('click', async () => {
     };
 
     try {
+        // Get authentication token from localStorage
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+            alert('Authentication token not found. Please log in again.');
+            window.location.href = '/login.html';
+            return;
+        }
+
         // Check if this menu name already exists
-        const checkResponse = await fetch('/api/menus');
+        const checkResponse = await fetch('/api/menus', {
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            }
+        });
+        
+        if (!checkResponse.ok) {
+            if (checkResponse.status === 401) {
+                alert('Your session has expired. Please log in again.');
+                window.location.href = '/login.html';
+                return;
+            }
+            throw new Error(`Error checking menus: ${checkResponse.statusText}`);
+        }
+        
         const existingMenus = await checkResponse.json();
         const menuExists = existingMenus.some(menu => menu.name === menuName);
         
@@ -1392,7 +1380,8 @@ document.getElementById('save-menu').addEventListener('click', async () => {
         const response = await fetch(url, {
             method: method,
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
             },
             body: JSON.stringify(menuData)
         });
@@ -1402,6 +1391,12 @@ document.getElementById('save-menu').addEventListener('click', async () => {
             alert('Menu saved successfully!');
             markChangesSaved();
         } else {
+            if (response.status === 401) {
+                alert('Your session has expired. Please log in again.');
+                window.location.href = '/login.html';
+                return;
+            }
+            
             const error = await response.json();
             alert(`Error saving menu: ${error.error}`);
         }
@@ -1454,9 +1449,27 @@ document.getElementById('duplicate-menu').addEventListener('click', async () => 
     if (!newMenuName) return; // User cancelled
 
     try {
+        // Get authentication token
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+            alert('Authentication token not found. Please log in again.');
+            window.location.href = '/login.html';
+            return;
+        }
+
         // First load the menu to duplicate
-        const response = await fetch(`/api/menus/${menuName}`);
+        const response = await fetch(`/api/menus/${menuName}`, {
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            }
+        });
+        
         if (!response.ok) {
+            if (response.status === 401) {
+                alert('Your session has expired. Please log in again.');
+                window.location.href = '/login.html';
+                return;
+            }
             const error = await response.json();
             alert(`Error duplicating menu: ${error.error}`);
             return;
@@ -1481,7 +1494,8 @@ document.getElementById('duplicate-menu').addEventListener('click', async () => 
         const saveResponse = await fetch('/api/menus', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
             },
             body: JSON.stringify(duplicatedMenu)
         });
@@ -1497,6 +1511,11 @@ document.getElementById('duplicate-menu').addEventListener('click', async () => 
             // Load the duplicated menu
             await loadMenu(newMenuName);
         } else {
+            if (saveResponse.status === 401) {
+                alert('Your session has expired. Please log in again.');
+                window.location.href = '/login.html';
+                return;
+            }
             const error = await saveResponse.json();
             alert(`Error creating duplicated menu: ${error.error}`);
         }
@@ -1516,8 +1535,19 @@ document.getElementById('delete-menu').addEventListener('click', async () => {
 
     if (confirm(`Are you sure you want to delete the menu "${menuName}"?`)) {
         try {
+            // Get authentication token
+            const authToken = localStorage.getItem('authToken');
+            if (!authToken) {
+                alert('Authentication token not found. Please log in again.');
+                window.location.href = '/login.html';
+                return;
+            }
+
             const response = await fetch(`/api/menus/${menuName}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
             });
 
             if (response.ok) {
@@ -1532,6 +1562,11 @@ document.getElementById('delete-menu').addEventListener('click', async () => {
                     updatePreview();
                 }
             } else {
+                if (response.status === 401) {
+                    alert('Your session has expired. Please log in again.');
+                    window.location.href = '/login.html';
+                    return;
+                }
                 const error = await response.json();
                 alert(`Error deleting menu: ${error.error}`);
             }
@@ -1545,7 +1580,19 @@ document.getElementById('delete-menu').addEventListener('click', async () => {
 // Update menu select dropdown
 async function updateMenuSelect() {
     try {
-        const response = await fetch('/api/menus');
+        // Get authentication token
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+            console.error('Authentication token not found');
+            return;
+        }
+
+        const response = await fetch('/api/menus', {
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            }
+        });
+        
         if (response.ok) {
             const menus = await response.json();
             const select = document.getElementById('menu-select');
@@ -1558,6 +1605,11 @@ async function updateMenuSelect() {
                 select.appendChild(option);
             });
         } else {
+            if (response.status === 401) {
+                alert('Your session has expired. Please log in again.');
+                window.location.href = '/login.html';
+                return;
+            }
             const error = await response.json();
             console.error('Error fetching menus:', error);
         }
