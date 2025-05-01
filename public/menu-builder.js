@@ -1173,41 +1173,124 @@ function confirmIfUnsavedChanges(action) {
 
 // Function to get the auth token from localStorage
 function getAuthToken() {
-    console.log('getAuthToken: Checking localStorage for user data');
-    
-    // First try the direct authToken entry (for future logins)
+    // First try direct token storage
     const directToken = localStorage.getItem('authToken');
-    if (directToken) {
-        console.log('getAuthToken: Found token in authToken entry');
-        return directToken;
-    }
+    if (directToken) return directToken;
     
-    // If not found, try to get from the user object
-    const userDataStr = localStorage.getItem('user');
-    console.log('getAuthToken: Raw user data from localStorage:', userDataStr);
-    
-    if (!userDataStr) return null;
-    
+    // Then try from user object
+    const userData = JSON.parse(localStorage.getItem('user') || 'null');
+    return userData && userData.token ? userData.token : null;
+}
+
+// Function to check authentication status and handle expired sessions
+async function checkAuthentication() {
     try {
-        const userData = JSON.parse(userDataStr);
-        console.log('getAuthToken: Parsed user data:', userData);
+        const response = await fetch('/api/auth/verify', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAuthToken()}`
+            }
+        });
+
+        const data = await response.json();
         
-        // The token is a direct property of the userData object, not under user
-        const token = userData && userData.token ? userData.token : null;
-        console.log('getAuthToken: Extracted token:', token ? `${token.substring(0, 10)}...` : 'null');
-        
-        // If we found a token here but not in the direct entry, save it for future use
-        if (token) {
-            console.log('getAuthToken: Saving token to authToken for future use');
-            localStorage.setItem('authToken', token);
+        if (!data.loggedIn) {
+            console.log('Authentication check failed:', data.error);
+            // Clear localStorage data
+            localStorage.removeItem('user');
+            localStorage.removeItem('authToken');
+            
+            // Show session expired message
+            const sessionModal = document.getElementById('session-expired-modal');
+            if (sessionModal) {
+                sessionModal.style.display = 'block';
+            } else {
+                // Create modal for session expired
+                const modal = document.createElement('div');
+                modal.id = 'session-expired-modal';
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                modal.innerHTML = `
+                    <div class="modal-content">
+                        <h2>Session Expired</h2>
+                        <p>Your session has expired. Please log in again.</p>
+                        <div class="modal-buttons">
+                            <button onclick="window.location.href = '/login.html'">Login</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            return false;
         }
         
-        return token;
-    } catch (e) {
-        console.error('getAuthToken: Error parsing user data:', e);
-        return null;
+        return true;
+    } catch (error) {
+        console.error('Error checking authentication:', error);
+        return false;
     }
 }
+
+// Add periodic authentication check
+setInterval(checkAuthentication, 60000); // Check every minute
+
+// Run authentication check when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    checkAuthentication();
+});
+
+// Add CSS for session expired modal
+const modalStyle = document.createElement('style');
+modalStyle.textContent = `
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: #ffffff;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+}
+
+.modal-content h2 {
+    color: #d9534f;
+    margin-top: 0;
+}
+
+.modal-buttons {
+    margin-top: 20px;
+}
+
+.modal-buttons button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.modal-buttons button:hover {
+    background-color: #0069d9;
+}
+`;
+document.head.appendChild(modalStyle);
 
 // Function to load a menu by name
 async function loadMenu(menuName) {
@@ -1215,8 +1298,8 @@ async function loadMenu(menuName) {
         // Get authentication token
         const authToken = getAuthToken();
         if (!authToken) {
-            alert('Authentication token not found. Please log in again.');
-            window.location.href = '/login.html';
+            // Use the checkAuthentication function to handle the expired session
+            await checkAuthentication();
             return;
         }
 
@@ -1226,86 +1309,78 @@ async function loadMenu(menuName) {
             }
         });
         
-        if (!response.ok) {
-            if (response.status === 401) {
-                alert('Your session has expired. Please log in again.');
-                window.location.href = '/login.html';
-                return;
-            }
-            const error = await response.json();
-            alert(`Error loading menu: ${error.error}`);
+        if (response.status === 401) {
+            // Use the checkAuthentication function to handle the expired session
+            await checkAuthentication();
             return;
+        }
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const menu = await response.json();
         
         // Clear existing menu
-        document.getElementById('sections').innerHTML = '';
+        clearMenu();
         
-        // Set basic info
+        // Set form fields
         document.getElementById('menu-name').value = menu.name;
         document.getElementById('title').value = menu.title || '';
         document.getElementById('subtitle').value = menu.subtitle || '';
+        document.getElementById('font-select').value = menu.font || 'Playfair Display';
+        document.getElementById('layout-select').value = menu.layout || 'single';
         
-        // Set font and layout
-        const fontSelect = document.getElementById('font-select');
-        fontSelect.value = menu.font || 'Playfair Display';
-        loadFont(fontSelect.value);
-        
-        const layoutSelect = document.getElementById('layout-select');
-        layoutSelect.value = menu.layout || 'single';
-        
-        // Set configuration options
+        // Set config options
         config.showDollarSign = menu.show_dollar_sign !== false;
         config.showDecimals = menu.show_decimals !== false;
         config.showSectionDividers = menu.show_section_dividers !== false;
-        config.logoPath = menu.logo_path || null;
-        config.logoPosition = menu.logo_position || 'top';
-        config.logoSize = menu.logo_size || 200;
-        config.logoOffset = menu.logo_offset || 0;
         config.backgroundColor = menu.background_color || '#ffffff';
         config.textColor = menu.text_color || '#000000';
         config.accentColor = menu.accent_color || '#333333';
+        config.logoPath = menu.logo_path || null;
+        config.logoPosition = menu.logo_position || 'top';
+        config.logoSize = menu.logo_size ? parseInt(menu.logo_size) : 200;
+        config.logoOffset = menu.logo_offset ? parseInt(menu.logo_offset) : 0;
         
-        // Update UI to match config
+        // Update configuration UI
         document.getElementById('show-dollar-sign').checked = config.showDollarSign;
         document.getElementById('show-decimals').checked = config.showDecimals;
-        document.getElementById('show-dividers').checked = config.showSectionDividers;
-        
-        if (config.logoPath) {
-            document.getElementById('logo-preview').src = config.logoPath;
-            document.getElementById('logo-preview').style.display = 'block';
-            document.getElementById('logo-position').value = config.logoPosition;
-            document.getElementById('logo-size').value = config.logoSize;
-            document.getElementById('logo-offset').value = config.logoOffset;
-        }
-        
+        document.getElementById('show-section-dividers').checked = config.showSectionDividers;
         document.getElementById('background-color').value = config.backgroundColor;
         document.getElementById('text-color').value = config.textColor;
         document.getElementById('accent-color').value = config.accentColor;
         
-        // Add elements
-        const elements = menu.elements || [];
-        if (elements.length === 0 && menu.sections) {
-            // Handle old format
-            menu.sections.forEach(section => addSection({
-                name: section.name,
-                active: section.active !== false && section.active !== 0,
-                items: section.items
-            }));
-        } else {
-            elements.forEach(element => {
+        // Logo options
+        document.getElementById('logo-position').value = config.logoPosition;
+        document.getElementById('logo-size-slider').value = config.logoSize;
+        document.getElementById('logo-size-number').value = config.logoSize;
+        document.getElementById('logo-offset-slider').value = config.logoOffset;
+        document.getElementById('logo-offset-number').value = config.logoOffset;
+        
+        // Update logo preview
+        if (config.logoPath) {
+            const logoPreview = document.getElementById('logo-preview');
+            logoPreview.src = config.logoPath;
+            logoPreview.style.maxWidth = '100%';
+            logoPreview.style.display = 'block';
+        }
+        
+        // Enable logo controls
+        document.querySelectorAll('.logo-controls input, .logo-controls select').forEach(control => {
+            control.disabled = !config.logoPath;
+        });
+        
+        // Update font
+        loadFont(document.getElementById('font-select').value);
+        
+        // Create sections, items, and spacers
+        if (menu.elements && menu.elements.length > 0) {
+            menu.elements.forEach(element => {
                 if (element.type === 'spacer') {
-                    addSpacer({
-                        size: element.size,
-                        unit: element.unit
-                    });
+                    addSpacer(element);
                 } else {
-                    addSection({
-                        name: element.name,
-                        active: element.active !== false && element.active !== 0,
-                        items: element.items
-                    });
+                    addSection(element);
                 }
             });
         }
@@ -1313,15 +1388,14 @@ async function loadMenu(menuName) {
         // Update preview
         updatePreview();
         
-        // Mark as saved
-        markChangesSaved();
-        
         // Store initial state after loading
         initialState = getMenuState();
         
+        console.log('Menu loaded successfully:', menu.name);
+        markChangesSaved();
     } catch (error) {
         console.error('Error loading menu:', error);
-        alert('Error loading menu. Please try again.');
+        alert('Error loading menu: ' + error.message);
     }
 }
 
@@ -1617,54 +1691,54 @@ document.getElementById('delete-menu').addEventListener('click', async () => {
 
 // Update menu select dropdown
 async function updateMenuSelect() {
-    console.log('updateMenuSelect: Starting menu dropdown update');
     try {
         // Get authentication token
         const authToken = getAuthToken();
         if (!authToken) {
-            console.error('updateMenuSelect: Authentication token not found, cannot fetch menus');
+            await checkAuthentication();
             return;
         }
-        
-        console.log('updateMenuSelect: Got token, making API request');
+
         const response = await fetch('/api/menus', {
             headers: {
                 'Authorization': `Bearer ${authToken}`
             }
         });
         
-        console.log('updateMenuSelect: API response status:', response.status);
+        if (response.status === 401) {
+            await checkAuthentication();
+            return;
+        }
         
-        if (response.ok) {
-            const menus = await response.json();
-            console.log('updateMenuSelect: Received menus:', menus);
-            
-            const select = document.getElementById('menu-select');
-            select.innerHTML = '<option value="">Select a menu</option>';
-            
-            if (menus.length === 0) {
-                console.log('updateMenuSelect: No menus found');
-            } else {
-                console.log(`updateMenuSelect: Adding ${menus.length} menus to dropdown`);
-                menus.forEach(menu => {
-                    const option = document.createElement('option');
-                    option.value = menu.name;
-                    option.textContent = menu.name;
-                    select.appendChild(option);
-                });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const menus = await response.json();
+        const select = document.getElementById('menu-select');
+        select.innerHTML = '<option value="">Select a menu</option>';
+        
+        menus.forEach(menu => {
+            const option = document.createElement('option');
+            option.value = menu.name;
+            option.textContent = menu.name;
+            select.appendChild(option);
+        });
+        
+        // Check if there's a menu name in the URL query params
+        const urlParams = new URLSearchParams(window.location.search);
+        const menuParam = urlParams.get('menu');
+        
+        if (menuParam) {
+            // If this menu exists in the dropdown, select it and load it
+            const menuOption = Array.from(select.options).find(option => option.value === menuParam);
+            if (menuOption) {
+                select.value = menuParam;
+                loadMenu(menuParam);
             }
-        } else {
-            if (response.status === 401) {
-                console.error('updateMenuSelect: Authentication failed (401)');
-                alert('Your session has expired. Please log in again.');
-                window.location.href = '/login.html';
-                return;
-            }
-            const error = await response.json();
-            console.error('updateMenuSelect: Error fetching menus:', error);
         }
     } catch (error) {
-        console.error('updateMenuSelect: Exception during fetch:', error);
+        console.error('Error updating menu select:', error);
     }
 }
 
