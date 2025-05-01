@@ -1171,11 +1171,17 @@ function confirmIfUnsavedChanges(action) {
     return true;
 }
 
+// Function to get the auth token from localStorage
+function getAuthToken() {
+    const userData = JSON.parse(localStorage.getItem('user') || 'null');
+    return userData && userData.token ? userData.token : null;
+}
+
 // Function to load a menu by name
 async function loadMenu(menuName) {
     try {
         // Get authentication token
-        const authToken = localStorage.getItem('authToken');
+        const authToken = getAuthToken();
         if (!authToken) {
             alert('Authentication token not found. Please log in again.');
             window.location.href = '/login.html';
@@ -1347,7 +1353,7 @@ document.getElementById('save-menu').addEventListener('click', async () => {
 
     try {
         // Get authentication token from localStorage
-        const authToken = localStorage.getItem('authToken');
+        const authToken = getAuthToken();
         if (!authToken) {
             alert('Authentication token not found. Please log in again.');
             window.location.href = '/login.html';
@@ -1450,7 +1456,7 @@ document.getElementById('duplicate-menu').addEventListener('click', async () => 
 
     try {
         // Get authentication token
-        const authToken = localStorage.getItem('authToken');
+        const authToken = getAuthToken();
         if (!authToken) {
             alert('Authentication token not found. Please log in again.');
             window.location.href = '/login.html';
@@ -1536,7 +1542,7 @@ document.getElementById('delete-menu').addEventListener('click', async () => {
     if (confirm(`Are you sure you want to delete the menu "${menuName}"?`)) {
         try {
             // Get authentication token
-            const authToken = localStorage.getItem('authToken');
+            const authToken = getAuthToken();
             if (!authToken) {
                 alert('Authentication token not found. Please log in again.');
                 window.location.href = '/login.html';
@@ -1581,7 +1587,7 @@ document.getElementById('delete-menu').addEventListener('click', async () => {
 async function updateMenuSelect() {
     try {
         // Get authentication token
-        const authToken = localStorage.getItem('authToken');
+        const authToken = getAuthToken();
         if (!authToken) {
             console.error('Authentication token not found');
             return;
