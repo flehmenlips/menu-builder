@@ -59,6 +59,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('auth.js: Saving to localStorage:', userDataForStorage);
                 localStorage.setItem('user', JSON.stringify(userDataForStorage));
                 
+                // ADDED: Store token separately for menu-builder.js compatibility
+                localStorage.setItem('authToken', data.token);
+                console.log('auth.js: Also saved authToken separately for compatibility');
+                
                 // REVERTED: Always redirect to /menu-builder as requested
                 window.location.href = '/menu-builder';
             })
