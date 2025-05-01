@@ -128,6 +128,7 @@ const brandingImageUpload = multer({
 
 // Authentication middleware
 const authenticateUser = async (req, res, next) => {
+  console.log('authenticateUser middleware: Starting authentication process');
   try {
     // Get token from Authorization header or cookies
     let token = null;
@@ -137,39 +138,52 @@ const authenticateUser = async (req, res, next) => {
       const authHeader = req.headers.authorization;
       if (authHeader.startsWith('Bearer ')) {
         token = authHeader.substring(7);
+        console.log('authenticateUser: Found token in Authorization header');
       }
     } else if (req.cookies && req.cookies.token) {
       token = req.cookies.token;
+      console.log('authenticateUser: Found token in cookies');
     }
     
     if (!token) {
+      console.log('authenticateUser: No token found in request');
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    // Verify token
-    const decoded = jwt.verify(token, JWT_SECRET);
+    console.log(`authenticateUser: Verifying token: ${token.substring(0, 15)}...`);
     
+    // Verify token
     try {
-      // Get user from database using auth module (now includes org & role)
-      const user = await auth.getUserById(decoded.userId);
+      const decoded = jwt.verify(token, JWT_SECRET);
+      console.log('authenticateUser: Token verified successfully, decoded:', decoded);
       
-      // Store user info in request object
-      req.user = {
-        id: user.id,
-        email: user.email,
-        is_admin: user.is_admin === true, // Check boolean
-        organization_id: user.organization_id, // Added
-        role: user.role // Added
-      };
-      console.log('authenticateUser: User authenticated:', req.user); // Log authenticated user info
-      next();
-    } catch (dbError) {
-      console.error('Database error during authentication:', dbError);
-      return res.status(401).json({ error: 'Authentication failed' });
+      try {
+        // Get user from database using auth module (now includes org & role)
+        const user = await auth.getUserById(decoded.userId);
+        console.log('authenticateUser: User retrieved from database:', user);
+        
+        // Store user info in request object
+        req.user = {
+          id: user.id,
+          email: user.email,
+          is_admin: user.is_admin === true, // Check boolean
+          organization_id: user.organization_id, // Added
+          role: user.role // Added
+        };
+        console.log('authenticateUser: User authenticated successfully:', req.user);
+        next();
+      } catch (dbError) {
+        console.error('authenticateUser: Database error retrieving user:', dbError);
+        return res.status(401).json({ error: 'Authentication failed - user not found' });
+      }
+    } catch (tokenError) {
+      console.error('authenticateUser: Token verification failed:', tokenError);
+      res.clearCookie('token'); // Clear the invalid token
+      return res.status(401).json({ error: 'Invalid or expired token' });
     }
   } catch (error) {
-    console.error('Token verification error:', error);
-    return res.status(401).json({ error: 'Invalid or expired token' });
+    console.error('authenticateUser: Unexpected error during authentication:', error);
+    return res.status(401).json({ error: 'Authentication failed' });
   }
 };
 
@@ -253,20 +267,23 @@ app.get('/api/settings/public', async (req, res) => {
 app.get('/api/auth/verify', async (req, res) => {
     console.log("GET /api/auth/verify: Request received.");
     let token = null;
+    
+    // Detailed token retrieval logging
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
         token = req.headers.authorization.substring(7);
-         console.log("GET /api/auth/verify: Token found in Authorization header.");
+        console.log("GET /api/auth/verify: Token found in Authorization header.");
     } else if (req.cookies && req.cookies.token) {
         token = req.cookies.token;
-         console.log("GET /api/auth/verify: Token found in cookie.");
+        console.log("GET /api/auth/verify: Token found in cookie.");
     } else {
-         console.log("GET /api/auth/verify: No token found in header or cookie.");
+        console.log("GET /api/auth/verify: No token found in header or cookie.");
+        return res.json({ 
+            loggedIn: false,
+            error: "No authentication token found"
+        });
     }
 
-    if (!token) {
-        console.log("GET /api/auth/verify: Responding { loggedIn: false } (no token).");
-        return res.json({ loggedIn: false });
-    }
+    console.log(`GET /api/auth/verify: Token: ${token.substring(0, 15)}...`);
 
     try {
         // Verify the token
@@ -279,8 +296,11 @@ app.get('/api/auth/verify', async (req, res) => {
         console.log("GET /api/auth/verify: Fetched user from DB:", user);
         
         if (!user) {
-             console.log("GET /api/auth/verify: User not found in DB for decoded ID. Responding { loggedIn: false }.");
-             return res.json({ loggedIn: false }); // User in token doesn't exist
+            console.log("GET /api/auth/verify: User not found in DB for decoded ID. Responding { loggedIn: false }.");
+            return res.json({ 
+                loggedIn: false,
+                error: "User not found in database" 
+            });
         }
 
         // Return success with minimal user info
@@ -290,18 +310,22 @@ app.get('/api/auth/verify', async (req, res) => {
                 id: user.id,
                 name: user.name,
                 email: user.email,
-                is_admin: user.is_admin === true, // Keep this for now, maybe useful
-                role: user.role // Add the role field
+                is_admin: user.is_admin === true,
+                role: user.role,
+                organization_id: user.organization_id
             }
         };
         console.log("GET /api/auth/verify: Responding with success:", responseData);
         res.json(responseData);
     } catch (error) {
         // Token invalid or other error
-        console.error('GET /api/auth/verify: CAUGHT ERROR:', error.message); 
+        console.error('GET /api/auth/verify: CAUGHT ERROR:', error.message, error.stack);
         res.clearCookie('token'); // Clear potentially bad cookie
         console.log("GET /api/auth/verify: Responding { loggedIn: false } (error).");
-        return res.json({ loggedIn: false });
+        return res.json({ 
+            loggedIn: false,
+            error: error.message || "Invalid token"
+        });
     }
 });
 

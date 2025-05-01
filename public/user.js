@@ -999,4 +999,52 @@ function setupColorPickers() {
             console.warn(`Could not find color input #${inputId} or span #${spanId}`);
         }
     });
-} 
+}
+
+// Add this function to handle authentication errors
+async function checkAuthentication() {
+    try {
+        const response = await fetch('/api/auth/verify', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAuthToken()}`
+            }
+        });
+
+        const data = await response.json();
+        
+        if (!data.loggedIn) {
+            console.log('Authentication check failed:', data.error);
+            // Clear localStorage data
+            localStorage.removeItem('user');
+            localStorage.removeItem('authToken');
+            
+            // Redirect to login page
+            window.location.href = '/login.html';
+            return false;
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Error checking authentication:', error);
+        return false;
+    }
+}
+
+// Helper function to get auth token
+function getAuthToken() {
+    // First try direct token storage
+    const directToken = localStorage.getItem('authToken');
+    if (directToken) return directToken;
+    
+    // Then try from user object
+    const userData = JSON.parse(localStorage.getItem('user') || 'null');
+    return userData && userData.token ? userData.token : null;
+}
+
+// Add periodic authentication check
+setInterval(checkAuthentication, 60000); // Check every minute
+
+// Run initial check
+document.addEventListener('DOMContentLoaded', checkAuthentication); 
