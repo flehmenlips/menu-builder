@@ -1173,8 +1173,17 @@ function confirmIfUnsavedChanges(action) {
 
 // Function to get the auth token from localStorage
 function getAuthToken() {
-    const userData = JSON.parse(localStorage.getItem('user') || 'null');
-    return userData && userData.token ? userData.token : null;
+    console.log('getAuthToken: Checking localStorage for user data');
+    const userDataStr = localStorage.getItem('user');
+    console.log('getAuthToken: Raw user data from localStorage:', userDataStr);
+    
+    const userData = JSON.parse(userDataStr || 'null');
+    console.log('getAuthToken: Parsed user data:', userData);
+    
+    const token = userData && userData.token ? userData.token : null;
+    console.log('getAuthToken: Extracted token:', token ? `${token.substring(0, 10)}...` : 'null');
+    
+    return token;
 }
 
 // Function to load a menu by name
@@ -1585,42 +1594,54 @@ document.getElementById('delete-menu').addEventListener('click', async () => {
 
 // Update menu select dropdown
 async function updateMenuSelect() {
+    console.log('updateMenuSelect: Starting menu dropdown update');
     try {
         // Get authentication token
         const authToken = getAuthToken();
         if (!authToken) {
-            console.error('Authentication token not found');
+            console.error('updateMenuSelect: Authentication token not found, cannot fetch menus');
             return;
         }
-
+        
+        console.log('updateMenuSelect: Got token, making API request');
         const response = await fetch('/api/menus', {
             headers: {
                 'Authorization': `Bearer ${authToken}`
             }
         });
         
+        console.log('updateMenuSelect: API response status:', response.status);
+        
         if (response.ok) {
             const menus = await response.json();
+            console.log('updateMenuSelect: Received menus:', menus);
+            
             const select = document.getElementById('menu-select');
             select.innerHTML = '<option value="">Select a menu</option>';
             
-            menus.forEach(menu => {
-                const option = document.createElement('option');
-                option.value = menu.name;
-                option.textContent = menu.name;
-                select.appendChild(option);
-            });
+            if (menus.length === 0) {
+                console.log('updateMenuSelect: No menus found');
+            } else {
+                console.log(`updateMenuSelect: Adding ${menus.length} menus to dropdown`);
+                menus.forEach(menu => {
+                    const option = document.createElement('option');
+                    option.value = menu.name;
+                    option.textContent = menu.name;
+                    select.appendChild(option);
+                });
+            }
         } else {
             if (response.status === 401) {
+                console.error('updateMenuSelect: Authentication failed (401)');
                 alert('Your session has expired. Please log in again.');
                 window.location.href = '/login.html';
                 return;
             }
             const error = await response.json();
-            console.error('Error fetching menus:', error);
+            console.error('updateMenuSelect: Error fetching menus:', error);
         }
     } catch (error) {
-        console.error('Error:', error);
+        console.error('updateMenuSelect: Exception during fetch:', error);
     }
 }
 
