@@ -7,6 +7,54 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="menu-builder.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom Session Expired Modal Styling */
+        #custom-session-expired-modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .custom-modal-content {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .custom-modal-content h2 {
+            color: #d9534f;
+            margin-top: 0;
+        }
+        
+        .custom-modal-buttons {
+            margin-top: 20px;
+        }
+        
+        .custom-modal-buttons button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .custom-modal-buttons button:hover {
+            background-color: #0069d9;
+        }
+    </style>
 </head>
 <body>
     <header class="app-header">
@@ -194,5 +242,59 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="menu-builder.js"></script>
     <script src="app-header.js"></script>
+    
+    <!-- Custom Session Expired Modal -->
+    <div id="custom-session-expired-modal">
+        <div class="custom-modal-content">
+            <h2>Session Expired</h2>
+            <p>Your session has expired. Please log in again.</p>
+            <div class="custom-modal-buttons">
+                <button onclick="window.location.href = '/login.html'">Login</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add this script to handle session expiration -->
+    <script>
+        // Override any built-in session expired modal
+        document.addEventListener('DOMContentLoaded', function() {
+            // Function to show our custom modal
+            window.showCustomSessionExpiredModal = function() {
+                const modal = document.getElementById('custom-session-expired-modal');
+                if (modal) {
+                    modal.style.display = 'flex';
+                }
+            };
+            
+            // Intercept any built-in modal dialog
+            const originalAlert = window.alert;
+            window.alert = function(message) {
+                if (message && (
+                    message.includes('session has expired') || 
+                    message.includes('Session expired') || 
+                    message.includes('Please log in again')
+                )) {
+                    showCustomSessionExpiredModal();
+                } else {
+                    originalAlert(message);
+                }
+            };
+            
+            // If there's a session dialog already showing, hide it and show ours
+            setTimeout(() => {
+                const dialogElements = document.querySelectorAll('.modal, [role="dialog"]');
+                for (const dialog of dialogElements) {
+                    const dialogText = dialog.textContent || '';
+                    if (dialogText.includes('session has expired') || 
+                        dialogText.includes('Session expired') || 
+                        dialogText.includes('Please log in again')) {
+                        dialog.style.display = 'none';
+                        showCustomSessionExpiredModal();
+                        break;
+                    }
+                }
+            }, 500);
+        });
+    </script>
 </body>
 </html>

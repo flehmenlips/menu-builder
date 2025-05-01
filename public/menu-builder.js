@@ -1201,26 +1201,18 @@ async function checkAuthentication() {
             localStorage.removeItem('user');
             localStorage.removeItem('authToken');
             
-            // Show session expired message
-            const sessionModal = document.getElementById('session-expired-modal');
-            if (sessionModal) {
-                sessionModal.style.display = 'block';
+            // Show session expired message using the custom modal
+            if (typeof window.showCustomSessionExpiredModal === 'function') {
+                window.showCustomSessionExpiredModal();
             } else {
-                // Create modal for session expired
-                const modal = document.createElement('div');
-                modal.id = 'session-expired-modal';
-                modal.className = 'modal';
-                modal.style.display = 'block';
-                modal.innerHTML = `
-                    <div class="modal-content">
-                        <h2>Session Expired</h2>
-                        <p>Your session has expired. Please log in again.</p>
-                        <div class="modal-buttons">
-                            <button onclick="window.location.href = '/login.html'">Login</button>
-                        </div>
-                    </div>
-                `;
-                document.body.appendChild(modal);
+                // Fallback if custom modal function isn't available
+                const sessionModal = document.getElementById('custom-session-expired-modal');
+                if (sessionModal) {
+                    sessionModal.style.display = 'flex';
+                } else {
+                    // Last resort - redirect to login page
+                    window.location.href = '/login.html';
+                }
             }
             return false;
         }
