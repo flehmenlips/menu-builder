@@ -209,10 +209,32 @@ const runDataMigration = async () => {
     try {
         await client.query('BEGIN');
 
+        // Check if foreign key constraints already exist
+        const constraintCheckQuery = `
+            SELECT constraint_name 
+            FROM information_schema.table_constraints 
+            WHERE constraint_name IN ('fk_user_organization', 'fk_menu_organization')
+        `;
+        const constraintResult = await client.query(constraintCheckQuery);
+        const existingConstraints = constraintResult.rows.map(row => row.constraint_name);
+        
         // Add Foreign Key constraints AFTER ensuring columns exist and data is potentially migrated
         console.log('Adding foreign key constraints...');
-        await client.query(`ALTER TABLE users ADD CONSTRAINT fk_user_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED`);
-        await client.query(`ALTER TABLE menus ADD CONSTRAINT fk_menu_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED`);
+        
+        // Only add constraints if they don't already exist
+        if (!existingConstraints.includes('fk_user_organization')) {
+            console.log(' - Adding fk_user_organization constraint');
+            await client.query(`ALTER TABLE users ADD CONSTRAINT fk_user_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED`);
+        } else {
+            console.log(' - fk_user_organization constraint already exists, skipping');
+        }
+        
+        if (!existingConstraints.includes('fk_menu_organization')) {
+            console.log(' - Adding fk_menu_organization constraint');
+            await client.query(`ALTER TABLE menus ADD CONSTRAINT fk_menu_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED`);
+        } else {
+            console.log(' - fk_menu_organization constraint already exists, skipping');
+        }
         
         // Find users needing migration
         const usersToMigrateResult = await client.query('SELECT id, name, email FROM users WHERE organization_id IS NULL');
@@ -239,10 +261,27 @@ const runDataMigration = async () => {
             console.log(`  - Updated ${menuUpdateResult.rowCount} menus for user ${user.id} with organization_id=${newOrgId}`);
         }
 
-        // Make organization_id NOT NULL after migration
-        console.log('Setting organization_id columns to NOT NULL...');
-        await client.query('ALTER TABLE users ALTER COLUMN organization_id SET NOT NULL');
-        await client.query('ALTER TABLE menus ALTER COLUMN organization_id SET NOT NULL');
+        // Check if NOT NULL constraints need to be added
+        const columnCheckQuery = `
+            SELECT column_name, is_nullable
+            FROM information_schema.columns
+            WHERE table_name IN ('users', 'menus')
+            AND column_name = 'organization_id'
+        `;
+        const columnResult = await client.query(columnCheckQuery);
+        const nullableColumns = columnResult.rows.filter(row => row.is_nullable === 'YES');
+        
+        if (nullableColumns.length > 0) {
+            console.log('Setting organization_id columns to NOT NULL...');
+            // Only add NOT NULL constraints if they don't already exist
+            for (const column of nullableColumns) {
+                const tableName = column.table_name;
+                console.log(` - Setting ${tableName}.organization_id to NOT NULL`);
+                await client.query(`ALTER TABLE ${tableName} ALTER COLUMN organization_id SET NOT NULL`);
+            }
+        } else {
+            console.log('All organization_id columns are already NOT NULL, skipping');
+        }
 
         await client.query('COMMIT');
         console.log('Data migration transaction committed successfully.');
