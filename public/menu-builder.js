@@ -1174,16 +1174,39 @@ function confirmIfUnsavedChanges(action) {
 // Function to get the auth token from localStorage
 function getAuthToken() {
     console.log('getAuthToken: Checking localStorage for user data');
+    
+    // First try the direct authToken entry (for future logins)
+    const directToken = localStorage.getItem('authToken');
+    if (directToken) {
+        console.log('getAuthToken: Found token in authToken entry');
+        return directToken;
+    }
+    
+    // If not found, try to get from the user object
     const userDataStr = localStorage.getItem('user');
     console.log('getAuthToken: Raw user data from localStorage:', userDataStr);
     
-    const userData = JSON.parse(userDataStr || 'null');
-    console.log('getAuthToken: Parsed user data:', userData);
+    if (!userDataStr) return null;
     
-    const token = userData && userData.token ? userData.token : null;
-    console.log('getAuthToken: Extracted token:', token ? `${token.substring(0, 10)}...` : 'null');
-    
-    return token;
+    try {
+        const userData = JSON.parse(userDataStr);
+        console.log('getAuthToken: Parsed user data:', userData);
+        
+        // The token is a direct property of the userData object, not under user
+        const token = userData && userData.token ? userData.token : null;
+        console.log('getAuthToken: Extracted token:', token ? `${token.substring(0, 10)}...` : 'null');
+        
+        // If we found a token here but not in the direct entry, save it for future use
+        if (token) {
+            console.log('getAuthToken: Saving token to authToken for future use');
+            localStorage.setItem('authToken', token);
+        }
+        
+        return token;
+    } catch (e) {
+        console.error('getAuthToken: Error parsing user data:', e);
+        return null;
+    }
 }
 
 // Function to load a menu by name
