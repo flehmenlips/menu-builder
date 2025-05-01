@@ -52,16 +52,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 // Successful login
-                const userDataForStorage = {
-                    user: data.user,
-                    token: data.token
-                };
+                // Clear any previous login data
+                localStorage.removeItem('user');
+                localStorage.removeItem('authToken');
+                
+                // Create a complete user object that includes the token
+                const userDataForStorage = typeof data.user === 'object' ? 
+                    { ...data.user, token: data.token || data.user.token } : 
+                    { user: data.user, token: data.token };
+                    
                 console.log('auth.js: Saving to localStorage:', userDataForStorage);
                 localStorage.setItem('user', JSON.stringify(userDataForStorage));
                 
-                // ADDED: Store token separately for menu-builder.js compatibility
-                localStorage.setItem('authToken', data.token);
-                console.log('auth.js: Also saved authToken separately for compatibility');
+                // Also store token separately for direct access
+                localStorage.setItem('authToken', userDataForStorage.token);
+                console.log('auth.js: Also saved authToken separately for consistency');
                 
                 // REVERTED: Always redirect to /menu-builder as requested
                 window.location.href = '/menu-builder';

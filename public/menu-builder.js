@@ -1179,48 +1179,93 @@ function getAuthToken() {
     
     // Then try from user object
     const userData = JSON.parse(localStorage.getItem('user') || 'null');
-    return userData && userData.token ? userData.token : null;
+    const token = userData && userData.token ? userData.token : null;
+    
+    // If we found a token in user object but not in direct storage, let's save it for future use
+    if (token && !directToken) {
+        console.log('Syncing token from user object to authToken for consistent access');
+        localStorage.setItem('authToken', token);
+    }
+    
+    return token;
 }
 
 // Function to check authentication status and handle expired sessions
 async function checkAuthentication() {
     try {
+        // Get token from consistent source
+        const token = getAuthToken();
+        if (!token) {
+            console.log('No authentication token found');
+            clearUserData();
+            showLoginPage();
+            return false;
+        }
+
         const response = await fetch('/api/auth/verify', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${getAuthToken()}`
-            }
+                'Authorization': `Bearer ${token}`
+            },
+            credentials: 'include' // Include cookies for older versions that use them
         });
 
         const data = await response.json();
         
         if (!data.loggedIn) {
             console.log('Authentication check failed:', data.error);
-            // Clear localStorage data
-            localStorage.removeItem('user');
-            localStorage.removeItem('authToken');
-            
-            // Show session expired message using the custom modal
-            if (typeof window.showCustomSessionExpiredModal === 'function') {
-                window.showCustomSessionExpiredModal();
-            } else {
-                // Fallback if custom modal function isn't available
-                const sessionModal = document.getElementById('custom-session-expired-modal');
-                if (sessionModal) {
-                    sessionModal.style.display = 'flex';
-                } else {
-                    // Last resort - redirect to login page
-                    window.location.href = '/login.html';
-                }
-            }
+            clearUserData();
+            showLoginPage();
             return false;
+        }
+        
+        // If successful, ensure we have the latest user data
+        if (data.user) {
+            // Update the user object with the latest data
+            const userData = {
+                ...data.user,
+                token: data.user.token || token // Preserve token if not included
+            };
+            
+            // Store in local storage
+            localStorage.setItem('user', JSON.stringify(userData));
+            
+            // Ensure token is also stored separately
+            if (userData.token) {
+                localStorage.setItem('authToken', userData.token);
+            }
         }
         
         return true;
     } catch (error) {
         console.error('Error checking authentication:', error);
+        clearUserData();
+        showLoginPage();
         return false;
+    }
+}
+
+// Helper function to clear user data from localStorage
+function clearUserData() {
+    localStorage.removeItem('user');
+    localStorage.removeItem('authToken');
+}
+
+// Helper function to show login page
+function showLoginPage() {
+    // Show session expired message using the custom modal
+    if (typeof window.showCustomSessionExpiredModal === 'function') {
+        window.showCustomSessionExpiredModal();
+    } else {
+        // Fallback if custom modal function isn't available
+        const sessionModal = document.getElementById('custom-session-expired-modal');
+        if (sessionModal) {
+            sessionModal.style.display = 'flex';
+        } else {
+            // Last resort - redirect to login page
+            window.location.href = '/login.html';
+        }
     }
 }
 

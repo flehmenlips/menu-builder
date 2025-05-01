@@ -79,9 +79,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const user = userString ? JSON.parse(userString) : null; // Parse the stored string
         console.log("app-header: checkAuthStatus - User from localStorage:", user);
         
-        // If no user is found in localStorage, redirect to login page
-        if (!user) {
-            console.log("app-header: No user in localStorage, redirecting to login.html");
+        // Get token from localStorage - check both possible locations
+        const directToken = localStorage.getItem('authToken');
+        const tokenFromUser = user?.token;
+        const token = directToken || tokenFromUser;
+        
+        // If no valid token, redirect to login
+        if (!token) {
+            console.log("app-header: No valid token found, redirecting to login.html");
+            localStorage.removeItem('user');
+            localStorage.removeItem('authToken');
             window.location.href = '/login.html';
             return; // Stop execution
         }
@@ -90,6 +97,9 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("app-header: User found locally, verifying with server...");
         fetch(`${API_BASE_URL}/auth/verify`, {
             method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
             credentials: 'include' // Send cookies
         })
         .then(response => {
@@ -106,24 +116,37 @@ document.addEventListener('DOMContentLoaded', function() {
                 // If not authenticated server-side, clear local user and redirect
                 console.log("app-header: Server verification failed, clearing user and redirecting to login.html");
                 localStorage.removeItem('user');
+                localStorage.removeItem('authToken');
                 window.location.href = '/login.html';
             } else {
                 // Server confirms user is logged in. Update header.
                 // Use the potentially updated user data from the verify response
                  console.log("app-header: Server verification successful. Updating header.");
                 updateUserInfo(data.user || user); 
+                
                 // Store potentially updated user data back in localStorage
                 if (data.user) {
-                    localStorage.setItem('user', JSON.stringify(data.user));
+                    const userData = {
+                        ...data.user,
+                        token: data.user.token || token // Preserve token if not in response
+                    };
+                    
+                    // Store in both formats for compatibility
+                    localStorage.setItem('user', JSON.stringify(userData));
+                    
+                    // Also store token separately for direct access
+                    if (userData.token) {
+                        localStorage.setItem('authToken', userData.token);
+                    }
                 }
             }
         })
         .catch(error => {
             console.error('app-header: Authentication verification error:', error);
-            // Optional: Decide if redirect should happen on network error
-            // For now, we allow the app to load using local data, might be stale.
-             console.log("app-header: Verification error, proceeding with potentially stale local user data.");
-             updateUserInfo(user); // Update header with local data on error
+            // On verification error, clear and redirect to login
+            localStorage.removeItem('user');
+            localStorage.removeItem('authToken');
+            window.location.href = '/login.html';
         });
     }
     
