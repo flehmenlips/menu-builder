@@ -157,9 +157,17 @@ const authenticateUser = async (req, res, next) => {
       const decoded = jwt.verify(token, JWT_SECRET);
       console.log('authenticateUser: Token verified successfully, decoded:', decoded);
       
+      // Get the user ID from the decoded token - could be userId or id
+      const userId = decoded.userId || decoded.id;
+      
+      if (!userId) {
+        console.error('authenticateUser: No user ID found in token');
+        return res.status(401).json({ error: 'Invalid token format' });
+      }
+      
       try {
         // Get user from database using auth module (now includes org & role)
-        const user = await auth.getUserById(decoded.userId);
+        const user = await auth.getUserById(userId);
         console.log('authenticateUser: User retrieved from database:', user);
         
         // Store user info in request object
@@ -291,8 +299,19 @@ app.get('/api/auth/verify', async (req, res) => {
         const decoded = jwt.verify(token, JWT_SECRET);
         console.log("GET /api/auth/verify: Token decoded:", decoded);
         
-        // Optionally fetch basic user details if needed by the header
-        const user = await auth.getUserById(decoded.userId);
+        // Get user ID, checking both possible formats
+        const userId = decoded.userId || decoded.id;
+        
+        if (!userId) {
+            console.error("GET /api/auth/verify: No user ID found in token");
+            return res.json({ 
+                loggedIn: false,
+                error: "Invalid token format" 
+            });
+        }
+        
+        // Fetch user details from database
+        const user = await auth.getUserById(userId);
         console.log("GET /api/auth/verify: Fetched user from DB:", user);
         
         if (!user) {
@@ -1311,6 +1330,15 @@ app.get('/admin.html', (req, res) => {
     
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
+        
+        // Ensure we have a user ID
+        const userId = decoded.userId || decoded.id;
+        if (!userId) {
+            console.error('No user ID found in token, redirecting to login.html');
+            res.clearCookie('token');
+            return res.redirect('/login.html');
+        }
+        
         res.sendFile(path.join(__dirname, '../public/admin.html'));
     } catch (error) {
         console.error('Invalid token, redirecting to login.html:', error);
